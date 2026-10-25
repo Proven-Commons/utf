@@ -38,7 +38,7 @@ A byte order mark (`EF BB BF`) is read as the character U+FEFF, like any other c
 
 Lean core encodes and decodes UTF-8 inside `String`. Two statements tie this library to core, as core defines it:
 
-- Core's `String.toUTF8` writes the same bytes as `encode`.
+- Core's `String.toUTF8`, as core defines it, writes the same bytes as `encode`.
 - Core's `String.fromUTF8?` accepts exactly the bytes `decode` accepts, and reads the same characters.
 
 At run time, core checks the bytes with C code (`lean_string_validate_utf8`), which no proof covers. The differential tests compare that C code with this decoder too.
@@ -52,7 +52,7 @@ At run time, core checks the bytes with C code (`lean_string_validate_utf8`), wh
 
 ## What must always hold
 
-Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use are in `Spec/Defs.lean`. They are written from RFC 3629 and Table 3-7, and checked against the RFC's examples and the table's rows.
+Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use are in `Spec/Defs.lean`. They are written from RFC 3629 and Table 3-7, and checked against the RFC's examples and against the first and last sequence of each row of the table and the bytes just outside its edges.
 
 | Property | Theorem |
 |----------|---------|
@@ -60,11 +60,11 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | `decode` returns `cs` exactly when the bytes are the encoding of `cs`, so every byte string it accepts has one reading, and it refuses everything listed above. | `Spec.decode_iff` |
 | Decoding what the encoder wrote gives the characters back. | `Spec.decode_encode` |
 | The decoder accepts exactly the byte sequences that Table 3-7 calls well formed. | `Spec.decode_wellFormed` |
-| Lean core's `String.toUTF8` writes the same bytes as the encoder. | `Spec.encode_toUTF8` |
+| Lean core's `String.toUTF8`, as core defines it, writes the same bytes as the encoder. | `Spec.encode_toUTF8` |
 | Lean core's `String.fromUTF8?`, as core defines it, agrees with the decoder. | `Spec.fromUTF8?_eq` |
 | The examples of RFC 3629, section 7, both ways. | `Spec.rfc3629_examples` |
-| The first and last code points of each length, and those on either side of the surrogates. | `Spec.boundary_vectors` |
-| The hard cases of Markus Kuhn's UTF-8 decoder test file. | `Spec.reject_vectors` |
+| The first and last code points of each length, those on either side of the surrogates, and the empty input. | `Spec.boundary_vectors` |
+| A selection of malformed inputs, most of them from Markus Kuhn's UTF-8 decoder test file, and each byte from 0xF5 to 0xFF. Every case in that file follows from `Spec.decode_iff`, and the tests run them all. | `Spec.reject_vectors` |
 
 Together, these fix every output.
 

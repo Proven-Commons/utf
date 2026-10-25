@@ -32,9 +32,9 @@ The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean`,
 | `decode` returns a list of characters exactly when the bytes are its encoding. So every byte string it accepts has one reading. It refuses everything else: overlong forms, surrogate halves, values past U+10FFFF, stray continuation bytes, the bytes 0xC0, 0xC1 and 0xF5 to 0xFF, and sequences cut short. | `Spec.decode_iff` |
 | Decoding what the encoder wrote gives the characters back. | `Spec.decode_encode` |
 | The decoder accepts exactly the byte sequences that Table 3-7 of the Unicode Standard calls well formed. | `Spec.decode_wellFormed` |
-| Lean core's `String.toUTF8` writes the same bytes as the encoder. | `Spec.encode_toUTF8` |
+| Lean core's `String.toUTF8`, as core defines it, writes the same bytes as the encoder. | `Spec.encode_toUTF8` |
 | Lean core's `String.fromUTF8?`, as core defines it, accepts exactly the bytes the decoder accepts and reads the same characters. | `Spec.fromUTF8?_eq` |
-| The examples of RFC 3629, section 7, the boundaries of each length and of the surrogates, and the hard cases of Markus Kuhn's decoder test file. | `Spec.rfc3629_examples`, `Spec.boundary_vectors`, `Spec.reject_vectors` |
+| The examples of RFC 3629, section 7, both ways; the boundaries of each length and of the surrogates; and a selection of malformed inputs, most of them from Markus Kuhn's UTF-8 decoder test file. Every case in that file follows from `Spec.decode_iff`, and the tests run them all. | `Spec.rfc3629_examples`, `Spec.boundary_vectors`, `Spec.reject_vectors` |
 
 The command-line tool in `Main.lean` answers `decode` and `encode` requests with these functions directly.
 
@@ -44,7 +44,7 @@ The command-line tool in `Main.lean` answers `decode` and `encode` requests with
 - Reading requests and printing answers in `Main.lean`: the hex parsing and printing, and the request format. The differential tests cover them, with malformed requests and CR LF line endings.
 - Other decoding policies. There is no lossy mode that puts U+FFFD in place of bad bytes, and a byte order mark is read as a character, not stripped.
 - UTF-16, UTF-32, and Unicode normalization.
-- Speed. The code works on lists, which suits proofs, not bulk data.
+- Speed and size. The code works on lists and recurses once per character, which suits proofs, not bulk data. With an 8 MB stack, a request of 12 million bytes is answered, but one of 16 million runs out of stack: the program stops, with the answers before it already written, and never gives a wrong one.
 
 ## What you must trust
 

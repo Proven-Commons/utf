@@ -9,7 +9,8 @@
 
   Both the challenge file and the proofs import this file, so each
   statement means the same thing on both sides. The `example`s check the
-  definitions against the RFC's examples and the table's rows.
+  definitions against the RFC's examples, and against the first and last
+  sequence of each row of the table and the bytes just outside its edges.
 -/
 
 import Utf8
@@ -114,3 +115,25 @@ example : Spec.WellFormedChar [0xF4, 0x8F, 0xBF, 0xBF] := by
   unfold Spec.WellFormedChar Spec.InRange; decide
 example : ¬ Spec.WellFormedChar [0xED, 0xA0, 0x80] := by
   unfold Spec.WellFormedChar Spec.InRange; decide
+
+-- The first and last sequence of each row of Table 3-7.
+example :
+    Spec.WellFormedChar [0x00] ∧ Spec.WellFormedChar [0x7F] ∧
+    Spec.WellFormedChar [0xC2, 0x80] ∧ Spec.WellFormedChar [0xDF, 0xBF] ∧
+    Spec.WellFormedChar [0xE0, 0xA0, 0x80] ∧ Spec.WellFormedChar [0xE0, 0xBF, 0xBF] ∧
+    Spec.WellFormedChar [0xE1, 0x80, 0x80] ∧ Spec.WellFormedChar [0xEC, 0xBF, 0xBF] ∧
+    Spec.WellFormedChar [0xED, 0x80, 0x80] ∧ Spec.WellFormedChar [0xED, 0x9F, 0xBF] ∧
+    Spec.WellFormedChar [0xEE, 0x80, 0x80] ∧ Spec.WellFormedChar [0xEF, 0xBF, 0xBF] ∧
+    Spec.WellFormedChar [0xF0, 0x90, 0x80, 0x80] ∧ Spec.WellFormedChar [0xF0, 0xBF, 0xBF, 0xBF] ∧
+    Spec.WellFormedChar [0xF1, 0x80, 0x80, 0x80] ∧ Spec.WellFormedChar [0xF3, 0xBF, 0xBF, 0xBF] ∧
+    Spec.WellFormedChar [0xF4, 0x80, 0x80, 0x80] ∧ Spec.WellFormedChar [0xF4, 0x8F, 0xBF, 0xBF] := by
+  simp only [Spec.WellFormedChar, Spec.InRange, UInt8.toNat]; and_intros <;> decide
+
+-- Just outside the edges of the rows.
+example :
+    ¬ Spec.WellFormedChar [0x80] ∧ ¬ Spec.WellFormedChar [0xC1, 0xBF] ∧
+    ¬ Spec.WellFormedChar [0xC2, 0x7F] ∧ ¬ Spec.WellFormedChar [0xC2, 0xC0] ∧
+    ¬ Spec.WellFormedChar [0xE0, 0x9F, 0xBF] ∧ ¬ Spec.WellFormedChar [0xED, 0xA0, 0x80] ∧
+    ¬ Spec.WellFormedChar [0xF0, 0x8F, 0xBF, 0xBF] ∧ ¬ Spec.WellFormedChar [0xF4, 0x90, 0x80, 0x80] ∧
+    ¬ Spec.WellFormedChar [0xF5, 0x80, 0x80, 0x80] := by
+  simp only [Spec.WellFormedChar, Spec.InRange, UInt8.toNat]; and_intros <;> decide

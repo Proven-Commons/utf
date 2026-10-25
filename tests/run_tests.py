@@ -92,7 +92,7 @@ def four_byte():
     for a in range(0xF0, 0xF8):
         for b in range(256):
             for c in (0x7F, 0x80, 0xA5, 0xBF, 0xC0):
-                for d in (0x80, 0xBF, 0xC0):
+                for d in (0x7F, 0x80, 0xBF, 0xC0):
                     yield bytes([a, b, c, d])
 
 
@@ -209,7 +209,7 @@ AT_EOF = [("decode 41", "OK:41"), ("encode 41", "41"), ("decode 41\r\n", "OK:41"
 def decode_pair(label, data, mutated=False):
     want = oracle_decode(data)
     return [(label, f"decode {data.hex()}", want, mutated),
-            (label + " (core)", f"core {data.hex()}", want, mutated)]
+            (label + " (core)", f"core {data.hex()}", want, False)]
 
 
 def cases(seed, count):
@@ -365,6 +365,7 @@ def main():
     core_items = [(item, got) for item, got in zip(items, out) if item[1].startswith("core ")]
     core_agree = sum(1 for item, got in core_items if got == item[2])
     mutated = sum(1 for item in items if item[3])
+    inputs = sum(1 for item in items if not item[1].startswith("core "))
     malformed = [got for item, got in zip(items, out) if item[0] == "error"]
 
     lines = [
@@ -375,7 +376,8 @@ def main():
         f"- Oracle: {oracle()}",
         f"- Lean: {lean_version()}",
         f"- Seed: {args.seed}",
-        f"- Inputs: {len(items)}",
+        f"- Inputs: {inputs}",
+        f"- Requests: {len(items)}, each decoded byte string also sent as `core`",
         f"- Mutated: {mutated} of the inputs are mutated encodings",
         "- By kind: " + ", ".join(f"{k} {v}" for k, v in sorted(by_label.items())),
         f"- Byte strings decoded: {len(decodes)}, of which {accepted} well formed and "
@@ -397,7 +399,7 @@ def main():
         lines.append("")
     write(lines)
     agree = sum(1 for item, got in zip(items, out) if got == item[2])
-    print(f"{agree}/{len(items)} inputs agree, {len(failures)} failures; results in {RESULTS}")
+    print(f"{agree}/{len(items)} requests agree, {len(failures)} failures; results in {RESULTS}")
     return 1 if failures else 0
 
 
