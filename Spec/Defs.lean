@@ -1,6 +1,7 @@
 /-
-  The definitions the specification uses, written from RFC 3629 and
-  from Table 3-7 of the Unicode Standard (section 3.9), independently of
+  The definitions the specification uses, written from RFC 3629, from
+  Table 3-7 of the Unicode Standard (section 3.9), and from section 3.9.6
+  of the Unicode Standard, version 16.0 (D93a, D93b), independently of
   the code in `Utf8/`. Part of the approved specification, with
   `Spec.lean`.
 
@@ -11,6 +12,9 @@
   statement means the same thing on both sides. The `example`s check the
   definitions against the RFC's examples, and against the first and last
   sequence of each row of the table and the bytes just outside its edges.
+  The definitions of section 3.9.6 have two direct checks here; the
+  standard's own examples, Tables 3-8 to 3-11, are checked through
+  `Spec.substitution_vectors` together with `Spec.decodeLossy_iff`.
 -/
 
 import Utf8
@@ -191,3 +195,19 @@ inductive Spec.Substitutes : List UInt8 → List Char → Prop where
   | replace {p rest : List UInt8} {out : List Char} :
       Spec.MaximalSubpart p rest → Spec.Substitutes rest out →
       Spec.Substitutes (p ++ rest) ('�' :: out)
+
+-- A well-formed sequence starts at the front of `E2 82 AC` (U+20AC), so
+-- that offset is not unconvertible.
+example : ¬ Spec.Unconvertible [0xE2, 0x82, 0xAC] := by
+  intro h
+  apply h [0xE2, 0x82, 0xAC] (by simp) (List.prefix_refl _)
+  have : Spec.WellFormedChar [0xE2, 0x82, 0xAC] := by
+    simp only [Spec.WellFormedChar, Spec.InRange, UInt8.toNat]; decide
+  simpa using Spec.WellFormed.cons this Spec.WellFormed.nil
+
+-- `F0 9F 98` is the start of a well-formed sequence, `F0 9F 98 80`.
+example : Spec.Initial [0xF0, 0x9F, 0x98] := by
+  refine ⟨[0xF0, 0x9F, 0x98, 0x80], ?_, ⟨[0x80], rfl⟩⟩
+  have : Spec.WellFormedChar [0xF0, 0x9F, 0x98, 0x80] := by
+    simp only [Spec.WellFormedChar, Spec.InRange, UInt8.toNat]; decide
+  simpa using Spec.WellFormed.cons this Spec.WellFormed.nil

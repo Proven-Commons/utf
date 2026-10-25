@@ -7,9 +7,9 @@
   the statement written here. The `sorry`s below are expected in this
   file only.
 
-  The definitions the statements use, written from RFC 3629 and Table
-  3-7 of the Unicode Standard, are in `Spec/Defs.lean`, which is part of
-  the specification too.
+  The definitions the statements use, written from RFC 3629, Table 3-7
+  of the Unicode Standard and section 3.9.6 of the Unicode Standard, are
+  in `Spec/Defs.lean`, which is part of the specification too.
 -/
 
 import Utf8

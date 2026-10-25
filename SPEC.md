@@ -64,7 +64,7 @@ At run time, core checks the bytes with C code (`lean_string_validate_utf8`), wh
 
 ## What must always hold
 
-Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use are in `Spec/Defs.lean`. They are written from RFC 3629 and Table 3-7, and checked against the RFC's examples and against the first and last sequence of each row of the table and the bytes just outside its edges.
+Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use are in `Spec/Defs.lean`. They are written from RFC 3629, Table 3-7 and section 3.9.6 (D93a, D93b). Those from RFC 3629 and Table 3-7 are checked against the RFC's examples and against the first and last sequence of each row of the table and the bytes just outside its edges. Those from section 3.9.6 have two direct checks there, and are checked against the standard's examples, Tables 3-8 to 3-11, through `Spec.substitution_vectors` together with `Spec.decodeLossy_iff`.
 
 | Property | Theorem |
 |----------|---------|

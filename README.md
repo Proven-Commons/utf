@@ -8,7 +8,7 @@ This library is a UTF-8 encoder, a validating decoder and a lossy decoder in Lea
 - Lean core's own UTF-8 functions, as core defines them, agree with both.
 - The lossy decoder puts one U+FFFD in place of each maximal subpart of bad bytes, exactly as section 3.9.6 of the Unicode Standard sets out, and valid text on either side comes through unchanged.
 
-So the decoder refuses overlong forms, surrogate halves, values past U+10FFFF and sequences cut short. A byte string has one reading or none, never two.
+So the validating decoder refuses overlong forms, surrogate halves, values past U+10FFFF and sequences cut short. A byte string has one reading or none, never two.
 
 It is tested against Python's UTF-8 codec, strict and with `errors="replace"`, with Lean core's compiled check compared alongside; `tests/TEST-RESULTS.md` has the record. It is a project of [Proven Commons](https://github.com/Proven-Commons/mission), built to the verified bar published there.
 
@@ -66,9 +66,9 @@ This project has no dependencies beyond Lean itself.
 
 ## Other decoders
 
-`tests/CROSS-CHECK.md` records a one-off comparison with Go's `utf8.Valid`, Rust's `String::from_utf8`, and Node's `TextDecoder` with `fatal` set. It is not part of the verified bar. On every byte string the tests decode, all three accept exactly what this decoder accepts and read the same code points.
+`tests/CROSS-CHECK.md` records a one-off comparison with Go's `utf8.Valid`, Rust's `String::from_utf8`, and Node's `TextDecoder` with `fatal` and `ignoreBOM` set. It is not part of the verified bar. On every byte string the tests decode, all three accept exactly what this decoder accepts and read the same code points.
 
-It also compares the lossy decoder with Rust's `String::from_utf8_lossy` and Node's `TextDecoder` without `fatal`, and both agree on every byte string. A Go `range` loop differs on purpose, since it puts one U+FFFD in place of each bad byte.
+It also compares the lossy decoder with Rust's `String::from_utf8_lossy` and Node's `TextDecoder` without `fatal` and with `ignoreBOM` set. On every byte string the tests decode, both read the same code points as the lossy decoder. With Node's default, `ignoreBOM` not set, `TextDecoder` drops a byte order mark at the start, where this library reads it as U+FEFF. A Go `range` loop differs on purpose, since it puts one U+FFFD in place of each bad byte.
 
 ## Re-check it
 

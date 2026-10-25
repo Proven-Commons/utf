@@ -1,7 +1,9 @@
 // Reads one hex-encoded byte string per line and prints whether Rust's
-// std::str::from_utf8 accepts it, with the code points it reads: "OK:"
+// String::from_utf8 accepts it, with the code points it reads: "OK:"
 // and lower case hex code points separated by commas, or "REJECT".
-// Used by tests/cross_check.py.
+// With the argument "lossy", prints "OK:" and the code points of
+// String::from_utf8_lossy, which puts U+FFFD in place of each maximal
+// subpart. Used by tests/cross_check.py.
 use std::io::{self, BufRead, BufWriter, Write};
 
 fn main() {
