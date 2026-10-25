@@ -1,10 +1,10 @@
 # Specification: utf
 
-This library is a UTF-8 encoder and a validating decoder. It turns Unicode scalar values into bytes and back. A reviewer who did not write this specification approves it. The approval also covers `Spec.lean`, `Spec/Defs.lean`, and the other files `bar.toml` lists.
+This library is a UTF-8 encoder, a validating decoder, and a lossy decoder. It turns Unicode scalar values into bytes and back. A reviewer who did not write this specification approves it. The approval also covers `Spec.lean`, `Spec/Defs.lean`, and the other files `bar.toml` lists.
 
 Characters are Lean's `Char`, which holds exactly the Unicode scalar values: 0 to 0xD7FF and 0xE000 to 0x10FFFF. Bytes are `List UInt8`.
 
-The sources are RFC 3629, *UTF-8, a transformation format of ISO 10646*, and Table 3-7, *Well-Formed UTF-8 Byte Sequences*, in section 3.9 of the Unicode Standard. The two describe the same encoding in different ways, and the proofs show that they agree.
+The sources are RFC 3629, *UTF-8, a transformation format of ISO 10646*, and Table 3-7, *Well-Formed UTF-8 Byte Sequences*, in section 3.9 of the Unicode Standard. The two describe the same encoding in different ways, and the proofs show that they agree. The lossy decoder follows section 3.9.6 of the Unicode Standard, version 16.0, *U+FFFD Substitution of Maximal Subparts*.
 
 ## Encoding
 
@@ -34,6 +34,18 @@ The bits of the code point fill the `x` positions, the lowest bit last. Every li
 
 A byte order mark (`EF BB BF`) is read as the character U+FEFF, like any other character. The decoder does not strip it.
 
+## Lossy decoding
+
+`decodeLossy` never fails. Where `decode` would give up, it puts one U+FFFD in place of the bad bytes and goes on. How many bytes one U+FFFD stands for is set by section 3.9.6 of the Unicode Standard:
+
+- An offset is *unconvertible* when no well-formed sequence starts there (definition D93a).
+- The *maximal subpart* at an unconvertible offset is the longest run of bytes from there that could still be the start of a well-formed sequence, or one byte if no run could (definition D93b).
+- At an unconvertible offset, the maximal subpart becomes one U+FFFD, and decoding goes on after it. Everywhere else, the character there is read as `decode` reads it.
+
+So `F0 9F 98 41` gives U+FFFD and `A`: the first three bytes could start a four-byte sequence, and `41` cannot continue it. `C0 AF` gives two U+FFFD, since `C0` never starts a well-formed sequence. A maximal subpart only goes on through continuation bytes (0x80 to 0xBF), which never start a character, so it never takes in the first byte of the text after it.
+
+The Unicode Standard describes this practice but does not require it for conformance. The WHATWG Encoding Standard requires it of browsers, and Python's `errors="replace"`, Rust's `String::from_utf8_lossy` and Node's `TextDecoder` follow it. Other policies exist: a Go `range` loop over a string puts one U+FFFD in place of each bad byte.
+
 ## Lean core
 
 Lean core encodes and decodes UTF-8 inside `String`. Two statements tie this library to core, as core defines it:
@@ -47,7 +59,7 @@ At run time, core checks the bytes with C code (`lean_string_validate_utf8`), wh
 
 `utf8 serve`, in `Main.lean`, answers requests from the differential tests, one per line. Its header comment gives the protocol.
 
-- `decode` and `encode` requests are answered by the proved functions.
+- `decode`, `lossy` and `encode` requests are answered by the proved functions.
 - `core` requests are answered by Lean core's `String.fromUTF8?`. They are there only so that the tests can compare core with this decoder.
 
 ## What must always hold
@@ -65,14 +77,20 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | The examples of RFC 3629, section 7, both ways. | `Spec.rfc3629_examples` |
 | The first and last code points of each length, those on either side of the surrogates, and the empty input. | `Spec.boundary_vectors` |
 | A selection of malformed inputs, most of them from Markus Kuhn's UTF-8 decoder test file, and each byte from 0xF5 to 0xFF. Every case in that file follows from `Spec.decode_iff`, and the tests run them all. | `Spec.reject_vectors` |
+| `decodeLossy` gives exactly the conversion of section 3.9.6: each character read as `decode` reads it, and one U+FFFD for each maximal subpart. | `Spec.decodeLossy_iff` |
+| On well-formed bytes, `decodeLossy` reads what `decode` reads. | `Spec.decodeLossy_of_decode` |
+| On bytes that are not well formed, `decodeLossy` gives at least one U+FFFD. | `Spec.decodeLossy_replaces` |
+| Well-formed text before or after bad bytes comes through unchanged. | `Spec.decodeLossy_encode_append`, `Spec.decodeLossy_append_encode` |
+| The examples of section 3.9.6, Tables 3-8 to 3-11, and two cut-short sequences followed by a character. | `Spec.substitution_vectors` |
 
 Together, these fix every output.
 
 - `encode` is fixed for every input.
 - `decode` is fixed for every input.
+- `decodeLossy` is fixed for every input, by `Spec.decodeLossy_iff`.
 - A decoder that accepted nothing would fail `Spec.decode_encode`.
 - A decoder that accepted too much would fail `Spec.decode_iff`.
 
 ## Oracle
 
-Python's strict `utf-8` codec, on every input. Lean core's `String.fromUTF8?` at run time is checked against the same answers.
+Python's strict `utf-8` codec, on every input, and its `replace` error handler for the lossy decoder. Lean core's `String.fromUTF8?` at run time is checked against the same answers as the strict decoder.

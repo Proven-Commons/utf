@@ -10,7 +10,12 @@ The byte strings are the ones tests/run_tests.py decodes, from the same
 seed. Each is given to this project's tool, to Go's `utf8.Valid`, to
 Rust's `String::from_utf8`, and to Node's `TextDecoder` with `fatal`
 set. Each must accept exactly what this decoder accepts and read the
-same code points. The counts go to tests/CROSS-CHECK.md.
+same code points.
+
+Then each byte string goes to the lossy decoder, and to the lossy
+decoding of the other three: Rust's `String::from_utf8_lossy`, Node's
+`TextDecoder` without `fatal`, and a Go `range` loop. The counts go to
+tests/CROSS-CHECK.md.
 """
 
 import argparse
@@ -32,18 +37,40 @@ def version(cmd):
     return (out.stdout or out.stderr).strip().splitlines()[0]
 
 
-def tools():
+def tools(mode=""):
+    """The command for each other decoder, by name."""
     BUILD.mkdir(parents=True, exist_ok=True)
+    arg = [mode] if mode else []
     subprocess.run(["go", "build", "-o", str(BUILD / "go-utf8"), "main.go"], cwd=HELPERS,
                    check=True, env={**__import__("os").environ, "GO111MODULE": "off"})
     subprocess.run(["rustc", "-O", "-o", str(BUILD / "rust-utf8"), "main.rs"], cwd=HELPERS,
                    check=True)
+    go, rust, node = (version(["go", "version"]), version(["rustc", "--version"]),
+                      version(["node", "--version"]))
+    if mode == "lossy":
+        return {
+            f"Go, a `range` loop over the string ({go})": [str(BUILD / "go-utf8"), *arg],
+            f"Rust `String::from_utf8_lossy` ({rust})": [str(BUILD / "rust-utf8"), *arg],
+            f"Node `TextDecoder`, not fatal ({node})": ["node", str(HELPERS / "main.js"), *arg],
+        }
     return {
-        f"Go `utf8.Valid` ({version(['go', 'version'])})": [str(BUILD / "go-utf8")],
-        f"Rust `String::from_utf8` ({version(['rustc', '--version'])})": [str(BUILD / "rust-utf8")],
-        f"Node `TextDecoder`, fatal ({version(['node', '--version'])})":
-            ["node", str(HELPERS / "main.js")],
+        f"Go `utf8.Valid` ({go})": [str(BUILD / "go-utf8")],
+        f"Rust `String::from_utf8` ({rust})": [str(BUILD / "rust-utf8")],
+        f"Node `TextDecoder`, fatal ({node})": ["node", str(HELPERS / "main.js")],
     }
+
+
+def compare(commands, hexes, ours, data, lines):
+    """Adds a table row for each command and returns examples of where it
+    differs from `ours`."""
+    examples = []
+    for name, cmd in commands.items():
+        out = subprocess.run(cmd, input=data, capture_output=True, text=True, check=True)
+        theirs = out.stdout.split("\n")[: len(hexes)]
+        diffs = [(h, o, t) for h, o, t in zip(hexes, ours, theirs) if o != t]
+        lines.append(f"| {name} | {len(diffs)} |")
+        examples += [f"- {name}: `{h}`: this project `{o}`, theirs `{t}`" for h, o, t in diffs[:5]]
+    return examples
 
 
 def main():
@@ -69,14 +96,26 @@ def main():
         "| Decoder | Differences from this project |",
         "| --- | --- |",
     ]
-    examples = []
-    for name, cmd in tools().items():
-        out = subprocess.run(cmd, input=data, capture_output=True, text=True, check=True)
-        theirs = out.stdout.split("\n")[: len(hexes)]
-        diffs = [(h, o, t) for h, o, t in zip(hexes, ours, theirs) if o != t]
-        lines.append(f"| {name} | {len(diffs)} |")
-        examples += [f"- {name}: `{h}`: this project `{o}`, theirs `{t}`" for h, o, t in diffs[:5]]
+    examples = compare(tools(), hexes, ours, data, lines)
     lines += [""] + examples
+
+    lossy, problem = run_tests.run_tool("".join(f"lossy {h}\n" for h in hexes))
+    if problem or len(lossy) != len(hexes):
+        sys.exit(f"the tool failed: {problem}")
+    lines += [
+        "## Lossy decoding",
+        "",
+        f"The same byte strings, given to the lossy decoder; "
+        f"{sum('fffd' in o.split(':', 1)[1].split(',') for o in lossy)} of its answers have a U+FFFD.",
+        "",
+        "| Decoder | Differences from this project |",
+        "| --- | --- |",
+    ]
+    examples = compare(tools("lossy"), hexes, lossy, data, lines)
+    lines += ["", "Go's `range` loop follows another policy, on purpose: the Go specification "
+              "says that on an invalid UTF-8 sequence it gives U+FFFD and \"will advance a "
+              "single byte\". So it gives one U+FFFD for each bad byte, and differs wherever a "
+              "maximal subpart is longer than one byte.", ""] + examples
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"{len(hexes)} byte strings; report in {REPORT}")
 

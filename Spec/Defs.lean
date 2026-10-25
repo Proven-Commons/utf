@@ -137,3 +137,57 @@ example :
     ¬ Spec.WellFormedChar [0xF0, 0x8F, 0xBF, 0xBF] ∧ ¬ Spec.WellFormedChar [0xF4, 0x90, 0x80, 0x80] ∧
     ¬ Spec.WellFormedChar [0xF5, 0x80, 0x80, 0x80] := by
   simp only [Spec.WellFormedChar, Spec.InRange, UInt8.toNat]; and_intros <;> decide
+
+/-! ## The Unicode Standard, section 3.9.6, U+FFFD Substitution of Maximal Subparts
+
+```
+D93a Unconvertible offset: An offset in a code unit sequence for which
+     no code unit subsequence starting at that offset is well-formed.
+
+D93b Maximal subpart of an ill-formed subsequence: The longest code
+     unit subsequence starting at an unconvertible offset that is
+     either:
+     a. the initial subsequence of a well-formed code unit sequence, or
+     b. a subsequence of length one.
+```
+
+"Whenever an unconvertible offset is reached during conversion of a
+code unit sequence:
+1. The maximal subpart at that offset is replaced by a single U+FFFD.
+2. The conversion proceeds at the offset immediately after the maximal
+   subpart."
+
+Below, an offset is the front of the bytes that remain, and a
+subsequence starting there is a prefix of them (`<+:`).
+-/
+
+/-- `p` is the initial subsequence of a well-formed code unit sequence. -/
+def Spec.Initial (p : List UInt8) : Prop :=
+  ∃ s, Spec.WellFormed s ∧ p <+: s
+
+/-- D93a: no subsequence starting at the front of `bs` is well formed.
+    (The empty one is left out: it starts nowhere.) -/
+def Spec.Unconvertible (bs : List UInt8) : Prop :=
+  ∀ s, s ≠ [] → s <+: bs → ¬ Spec.WellFormed s
+
+/-- D93b: `p` is the maximal subpart at the front of `p ++ rest`. The
+    front is an unconvertible offset, and `p` is the longest prefix
+    there that is either the start of a well-formed sequence or one
+    byte long. -/
+def Spec.MaximalSubpart (p rest : List UInt8) : Prop :=
+  p ≠ [] ∧ Spec.Unconvertible (p ++ rest) ∧
+  (Spec.Initial p ∨ p.length = 1) ∧
+  ∀ q, q <+: p ++ rest → (Spec.Initial q ∨ q.length = 1) → q.length ≤ p.length
+
+/-- Conversion with U+FFFD substitution of maximal subparts: converting
+    `bs` gives `out`. Where a character's well-formed sequence starts,
+    it gives the character; at an unconvertible offset, the maximal
+    subpart gives one U+FFFD; either way, conversion proceeds after the
+    bytes used. -/
+inductive Spec.Substitutes : List UInt8 → List Char → Prop where
+  | nil : Spec.Substitutes [] []
+  | char {c : Char} {rest : List UInt8} {out : List Char} :
+      Spec.Substitutes rest out → Spec.Substitutes (Spec.encodeChar c ++ rest) (c :: out)
+  | replace {p rest : List UInt8} {out : List Char} :
+      Spec.MaximalSubpart p rest → Spec.Substitutes rest out →
+      Spec.Substitutes (p ++ rest) ('�' :: out)

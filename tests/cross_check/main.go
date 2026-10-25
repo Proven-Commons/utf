@@ -1,7 +1,9 @@
 // Reads one hex-encoded byte string per line and prints whether Go's
 // unicode/utf8.Valid accepts it, with the code points it reads: "OK:"
 // and lower case hex code points separated by commas, or "REJECT".
-// Used by tests/cross_check.py.
+// With the argument "lossy", prints "OK:" and the code points that a
+// `range` loop over the string reads, which gives U+FFFD in place of
+// each byte it cannot read. Used by tests/cross_check.py.
 package main
 
 import (
@@ -18,9 +20,10 @@ func main() {
 	in.Buffer(make([]byte, 1<<20), 1<<20)
 	out := bufio.NewWriter(os.Stdout)
 	defer out.Flush()
+	lossy := len(os.Args) > 1 && os.Args[1] == "lossy"
 	for in.Scan() {
 		b, err := hex.DecodeString(in.Text())
-		if err != nil || !utf8.Valid(b) {
+		if err != nil || (!lossy && !utf8.Valid(b)) {
 			fmt.Fprintln(out, "REJECT")
 			continue
 		}

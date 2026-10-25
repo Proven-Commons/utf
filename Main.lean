@@ -9,6 +9,8 @@
                     hex, separated by commas; or REJECT
     core HEX        prints  the same answer from Lean core's
                     `String.fromUTF8?`, for comparison
+    lossy HEX       prints  OK: and the code points the lossy decoder
+                    reads, with fffd for each replacement
     encode POINTS   prints  the hex of the encoding, or INVALID when a
                     code point is not a Unicode scalar value
 
@@ -21,10 +23,10 @@
   request line may end in LF or CR LF. Each answer is flushed as soon as
   it is written.
 
-  `decode` and `encode` come from the proved functions in `Utf8/`. `core`
-  is there only so the tests can compare Lean core's compiled check with
-  them. The parsing and printing here are covered by the tests, not by a
-  proof.
+  `decode`, `lossy` and `encode` come from the proved functions in
+  `Utf8/`. `core` is there only so the tests can compare Lean core's
+  compiled check with them. The parsing and printing here are covered by
+  the tests, not by a proof.
 -/
 
 import Utf8
@@ -68,6 +70,9 @@ def request (line : String) : Option String :=
   | ["decode", h] => do
     let bs ← hexBytes h.toList
     pure (showDecoded (Utf8.decode bs))
+  | ["lossy", h] => do
+    let bs ← hexBytes h.toList
+    pure (showDecoded (some (Utf8.decodeLossy bs)))
   | ["core", h] => do
     let bs ← hexBytes h.toList
     pure (showDecoded ((String.fromUTF8? bs.toByteArray).map String.toList))
