@@ -3,7 +3,7 @@
 Written by `tests/cross_check.py`, once, by hand. It is not part of the verified bar.
 
 - Seed: 20261025
-- Byte strings: 2358229, of which 148759 this project accepts
+- Byte strings: 2358234, of which 148762 this project accepts
 
 | Decoder | Differences from this project |
 | --- | --- |
@@ -13,7 +13,7 @@ Written by `tests/cross_check.py`, once, by hand. It is not part of the verified
 
 ## Lossy decoding
 
-The same byte strings, given to the lossy decoder; 2212132 of its answers have a U+FFFD.
+The same byte strings, given to the lossy decoder; 2212134 of its answers have a U+FFFD.
 
 | Decoder | Differences from this project |
 | --- | --- |

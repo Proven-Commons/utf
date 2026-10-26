@@ -63,13 +63,13 @@ def Spec.encode (cs : List Char) : List UInt8 :=
 -- U+002E), the Korean word "hangugeo" (U+D55C U+AD6D U+C5B4), the
 -- Japanese word "nihongo" (U+65E5 U+672C U+8A9E), and a byte order mark
 -- followed by U+233B4.
-example : Spec.encode ['A', '≢', 'Α', '.'] =
+example : Spec.encode ['A', '≢', '\u0391', '.'] =
     [0x41, 0xE2, 0x89, 0xA2, 0xCE, 0x91, 0x2E] := by decide
 example : Spec.encode ['한', '국', '어'] =
     [0xED, 0x95, 0x9C, 0xEA, 0xB5, 0xAD, 0xEC, 0x96, 0xB4] := by decide
 example : Spec.encode ['日', '本', '語'] =
     [0xE6, 0x97, 0xA5, 0xE6, 0x9C, 0xAC, 0xE8, 0xAA, 0x9E] := by decide
-example : Spec.encode ['﻿', Char.ofNat 0x233B4] =
+example : Spec.encode ['\uFEFF', Char.ofNat 0x233B4] =
     [0xEF, 0xBB, 0xBF, 0xF0, 0xA3, 0x8E, 0xB4] := by decide
 
 /-! ## The Unicode Standard, Table 3-7, Well-Formed UTF-8 Byte Sequences

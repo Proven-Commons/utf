@@ -80,7 +80,9 @@ lake comparator --paranoid
 python3 tests/run_tests.py
 ```
 
-`lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean.
+`lake build` checks every proof in `Proofs/`, and fails if one is broken.
+
+`lake comparator` is part of Lake in Lean 4.35.0, the toolchain that `lean-toolchain` pins and elan installs. `lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean.
 
 The test script compares the tool with Python's UTF-8 codec, strict and with the `replace` error handler. It runs every byte string of one and two bytes, a grid of three- and four-byte strings, and random and mutated inputs from a recorded seed. It then rewrites `tests/TEST-RESULTS.md`.
 
