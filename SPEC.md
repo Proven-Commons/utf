@@ -76,7 +76,14 @@ The encoding schemes write each code unit as two bytes:
 - **UTF-16BE** (D96) writes the high byte first.
 - **UTF-16LE** (D97) writes the low byte first.
 
-`encodeBE` and `encodeLE` never write a byte order mark. `decodeBE` and `decodeLE` return the characters exactly when the bytes are such an encoding. So they refuse an odd number of bytes, and wherever `decode` refuses the units. In these two schemes a leading `FE FF` (big-endian) or `FF FE` (little-endian) is the character U+FEFF, not a mark. The other order's mark, `FF FE` in UTF-16BE or `FE FF` in UTF-16LE, reads as U+FFFE, a noncharacter, as the Unicode Standard has it. RFC 2781, sections 4.1 and 4.2, would call it an error instead.
+`encodeBE` and `encodeLE` never write a byte order mark. `decodeBE` and `decodeLE` return the characters exactly when the bytes are such an encoding. So they refuse an odd number of bytes, and wherever `decode` refuses the units. In these two schemes a leading `FE FF` (big-endian) or `FF FE` (little-endian) is the character U+FEFF, not a mark.
+
+The other order's mark, `FF FE` in UTF-16BE or `FE FF` in UTF-16LE, reads as U+FFFE, not as an error. That is a choice, because the two sources differ:
+
+- RFC 2781, section 4.1, says of UTF-16BE: "Finding 0xFF followed by 0xFE is an error since there is no Unicode character 0xFFFE." Section 4.2 says the same of `FE FF` in UTF-16LE.
+- The Unicode Standard has the code point U+FFFE. D14 makes it a noncharacter, one "that will never be assigned to an abstract character", but it is still a scalar value (D76). D91 assigns each scalar value from U+E000 to U+FFFF "to a single unsigned 16-bit code unit with the same numeric value". So the unit 0xFFFE is well formed, and D96 and D97 serialize it as `FF FE` in UTF-16BE and `FE FF` in UTF-16LE.
+
+The decoders follow the Unicode Standard, as Python, Node and Rust do.
 
 `decodeScheme` reads the **UTF-16 encoding scheme** (D98, RFC 2781 section 4.3):
 
