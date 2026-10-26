@@ -179,8 +179,11 @@ def main():
     lines += [
         "## Lossy decoding",
         "",
-        f"The same byte strings, given to the lossy decoder; "
-        f"{sum('fffd' in o.split(':', 1)[1].split(',') for o in lossy)} of its answers have a U+FFFD.",
+        f"The same byte strings, given to the lossy decoder. "
+        f"{sum(o == 'REJECT' for o in ours)} of its answers have a U+FFFD in place of bad bytes, "
+        "one for each byte string this project refuses. "
+        f"{sum('fffd' in o.split(':', 1)[1].split(',') for o in lossy)} have a U+FFFD anywhere, "
+        "which also counts well-formed input that holds a U+FFFD of its own, `EF BF BD`.",
         "",
         "| Decoder | Differences from this project |",
         "| --- | --- |",

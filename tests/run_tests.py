@@ -19,7 +19,7 @@ Inputs come from a recorded seed, after fixed sets:
   of the continuation range;
 - four-byte strings led by 0xF0 to 0xF7 over every second byte, with the
   third and fourth at the edges;
-- the hard cases from Markus Kuhn's UTF-8 decoder test file;
+- every test in Markus Kuhn's UTF-8 decoder test file;
 - random lists of code points, weighted to the edges of each length and
   of the surrogates, encoded and decoded;
 - mutations of those encodings: a byte changed, dropped, added or
@@ -164,14 +164,18 @@ def four_byte():
                     yield bytes([a, b, c, d])
 
 
-# The hard cases of Markus Kuhn's UTF-8 decoder test file
+# Every test of Markus Kuhn's UTF-8 decoder test file
 # (https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt),
-# sections 2 to 5, written out here.
+# sections 1 to 5, written out here. The oracle gives each answer.
 KUHN = [
+    # 1: the Greek word "kosme", accepted.
+    "cebae1bdb9cf83cebcceb5",
     "00", "c280", "e0a080", "f0908080", "f888808080", "fc8480808080",
     "7f", "dfbf", "efbfbf", "f7bfbfbf", "fbbfbfbfbf", "fdbfbfbfbfbf",
     "ed9fbf", "ee8080", "efbfbd", "f48fbfbf", "f4908080",
     "80", "bf", "80bf", "80bf80", "80bf80bf", "80bf80bf80",
+    # 3.1.7 and 3.1.8: six and seven continuation bytes, refused.
+    "80bf80bf80bf", "80bf80bf80bf80",
     "".join(f"{b:02x}" for b in range(0x80, 0xC0)),
     "".join(f"{b:02x}20" for b in range(0xC0, 0xE0)),
     "".join(f"{b:02x}20" for b in range(0xE0, 0xF0)),
@@ -189,6 +193,10 @@ KUHN = [
     "eda080edb080", "eda080edbfbf", "edadbfedb080", "edadbfedbfbf",
     "edae80edb080", "edae80edbfbf", "edafbfedb080", "edafbfedbfbf",
     "efbfbe", "efbfbf", "efb790", "efb7af",
+    # 5.3.3: the noncharacters U+FDD0 to U+FDEF in a row. 5.3.4: U+nFFFE and
+    # U+nFFFF for n = 1 to 0x10. These are scalar values, so both are accepted.
+    "".join(f"efb7{b:02x}" for b in range(0x90, 0xB0)),
+    "".join(chr(n << 16 | k) for n in range(1, 0x11) for k in (0xFFFE, 0xFFFF)).encode("utf-8").hex(),
 ]
 
 
@@ -570,7 +578,11 @@ def main():
     lossy_items = [(item, got) for item, got in zip(items, out)
                    if item[1].startswith("lossy ") and item[0] != "error"]
     lossy_agree = sum(1 for item, got in lossy_items if got == item[2])
-    lossy_replaced = sum(1 for item, _ in lossy_items if "fffd" in item[2].split(":", 1)[1].split(","))
+    # A U+FFFD in place of bad bytes comes only where the input is not
+    # well formed. A U+FFFD can also be in well-formed input, as EF BF BD.
+    lossy_replaced = sum(1 for item, _ in lossy_items
+                         if oracle_decode(bytes.fromhex(item[1].split(" ", 1)[1])) == "REJECT")
+    lossy_fffd = sum(1 for item, _ in lossy_items if "fffd" in item[2].split(":", 1)[1].split(","))
     u16 = [(item, got) for item, got in zip(items, out) if item[1].startswith("dec16 ")
            and item[0] != "error"]
     u16_ok = sum(1 for item, _ in u16 if item[2].startswith("OK"))
@@ -624,8 +636,11 @@ def main():
         f"- The same byte strings given to Lean core's `String.fromUTF8?`, agreeing with "
         f"Python: {core_agree} of {len(core_items)}",
         f"- The same byte strings given to the lossy decoder, agreeing with Python's "
-        f"`replace` handler: {lossy_agree} of {len(lossy_items)}, of which {lossy_replaced} "
-        "have a U+FFFD in the answer",
+        f"`replace` handler: {lossy_agree} of {len(lossy_items)}",
+        f"- Lossy answers with a U+FFFD in place of bad bytes: {lossy_replaced}, one for each "
+        "byte string that is not well formed",
+        f"- Lossy answers with a U+FFFD anywhere: {lossy_fffd}, also counting well-formed input "
+        "that holds a U+FFFD of its own, `EF BF BD`",
         f"- UTF-16 unit lists decoded: {len(u16)}, of which {u16_ok} well formed and "
         f"{len(u16) - u16_ok} refused; the lossy decoder agreeing with Python's `replace` "
         f"handler on {sum(1 for i, g in u16_lossy if g == i[2])} of {len(u16_lossy)}; "
