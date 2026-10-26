@@ -2,7 +2,7 @@
 
 Written by `tests/run_tests.py`. Rerun it to check these numbers.
 
-- Oracle: Python 3.12.3 `utf-8`, `utf-16-be` and `utf-16-le` codecs, strict and with the `replace` error handler, and its `utf-16` codec for text with a byte order mark; for `toWellFormed`, ECMAScript's `CodePointAt`, written in tests/run_tests.py
+- Oracle: Python 3.13.17 `utf-8`, `utf-16-be` and `utf-16-le` codecs, strict and with the `replace` error handler, and its `utf-16` codec for text with a byte order mark; for `toWellFormed`, ECMAScript's `CodePointAt`, written in tests/run_tests.py
 - Lean: Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)
 - Seed: 20261025
 - Inputs: 2818540
@@ -12,8 +12,9 @@ Written by `tests/run_tests.py`. Rerun it to check these numbers.
 - Byte strings decoded: 2358234, of which 148762 well formed and 2209472 refused
 - The same byte strings given to Lean core's `String.fromUTF8?`, agreeing with Python: 2358234 of 2358234
 - The same byte strings given to the lossy decoder, agreeing with Python's `replace` handler: 2358234 of 2358234
-- Lossy answers with a U+FFFD in place of bad bytes: 2209472, one for each byte string that is not well formed
-- Lossy answers with a U+FFFD anywhere: 2212134, also counting well-formed input that holds a U+FFFD of its own, `EF BF BD`
+- Lossy answers that hold a U+FFFD, for byte strings that are not well formed: 2209472 of 2209472
+- Lossy answers that hold a U+FFFD, for well-formed byte strings: 2662 of 148762. Of those byte strings, 2662 hold `EF BF BD`, the bytes of U+FFFD
+- Lossy answers that hold a U+FFFD, in all: 2212134
 - UTF-16 unit lists decoded: 186008, of which 134596 well formed and 51412 refused; the lossy decoder agreeing with Python's `replace` handler on 186008 of 186008; `toWellFormed` agreeing with ECMAScript's rule on 186008 of 186008
 - UTF-16 byte strings: 186852, of which 19180 of odd length; the lossy byte decoders agreeing with Python's `replace` handler on 373704 of 373704
 - Byte strings with no byte order mark that Python's own `utf-16` codec, reading them little-endian, would read differently from RFC 2781's big-endian rule: 130714

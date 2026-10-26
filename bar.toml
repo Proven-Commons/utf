@@ -30,4 +30,4 @@ code = ["Utf8.encode", "Utf8.decode", "Utf8.decodeLossy",
 [tests]
 results = "tests/TEST-RESULTS.md"
 command = "python3 tests/run_tests.py"
-files = ["tests/run_tests.py"]
+files = ["tests/run_tests.py", "tests/planted_bugs.py"]

@@ -55,7 +55,7 @@ The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean` 
 | `decodeLossy` gives exactly what section 3.9.6 of the Unicode Standard, *U+FFFD Substitution of Maximal Subparts*, sets out: each well-formed sequence becomes its character, and each maximal subpart of bad bytes becomes one U+FFFD. | `Spec.decodeLossy_iff` |
 | On well-formed bytes, `decodeLossy` reads what `decode` reads; on any other bytes it gives at least one U+FFFD. | `Spec.decodeLossy_of_decode`, `Spec.decodeLossy_replaces` |
 | Well-formed text before or after bad bytes comes through unchanged: no U+FFFD takes in any of it. | `Spec.decodeLossy_encode_append`, `Spec.decodeLossy_append_encode` |
-| The examples of Tables 3-8 to 3-11 of the Unicode Standard, and two cut-short sequences followed by a character. | `Spec.substitution_vectors` |
+| The examples of Tables 3-8 to 3-11 of the Unicode Standard, and six cut-short sequences followed by a character. | `Spec.substitution_vectors` |
 | The UTF-16 encoder writes each character as RFC 2781, section 2.1, sets out. | `Spec.utf16_encode_eq` |
 | `Utf16.decode` returns a list of characters exactly when the code units are its encoding. So every unit list it accepts has one reading, and it refuses everything else. | `Spec.utf16_decode_iff` |
 | Decoding what the UTF-16 encoder wrote gives the characters back. | `Spec.utf16_decode_encode` |
@@ -118,11 +118,11 @@ lake comparator --paranoid
 python3 tests/run_tests.py
 ```
 
-`lake build` checks every proof in `Proofs/`, and fails if one is broken.
+`lake build` compiles the code and the proofs, and fails on any error in them. It only warns about a `sorry`, and it does not check the axioms a proof uses or compare the proofs with `Spec.lean`. `lake comparator --paranoid` is the command that checks every statement is proved, with no `sorry`.
 
 `lake comparator` is part of Lake in Lean 4.35.0, the toolchain that `lean-toolchain` pins and elan installs. `lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean.
 
-The test script compares the tool with Python's UTF-8 and UTF-16 codecs, strict and with the `replace` error handler. For UTF-8 it runs every byte string of one and two bytes, a grid of three- and four-byte strings, and random and mutated inputs from a recorded seed. For UTF-16 it runs every single code unit, every pair and triple of units at the edges of the surrogate ranges, every byte string of one and two bytes through each byte decoder, and random and mutated inputs. It then rewrites `tests/TEST-RESULTS.md`.
+The test script builds the tool alone, not the proofs, and compares it with Python's UTF-8 and UTF-16 codecs, strict and with the `replace` error handler. For UTF-8 it runs every byte string of one and two bytes, a grid of three- and four-byte strings, and random and mutated inputs from a recorded seed. For UTF-16 it runs every single code unit, every pair and triple of units at the edges of the surrogate ranges, every byte string of one and two bytes through each byte decoder, and random and mutated inputs. It then rewrites `tests/TEST-RESULTS.md`. `tests/planted_bugs.py` plants seven small bugs in the code under proof, one at a time in a copy, and `tests/PLANTED-BUGS.md` records that the tests catch six of them, why the seventh changes no answer, and that each of the seven stops the proofs from building.
 
 ## Layout
 
@@ -137,4 +137,5 @@ The test script compares the tool with Python's UTF-8 and UTF-16 codecs, strict 
 - `bar.toml`: the record for the bar check: status, authors, approvals, and where things are.
 - `SPEC.md`: the specification in plain words.
 - `tests/run_tests.py`: the differential tests.
+- `tests/planted_bugs.py`: the planted bugs, which check that the tests catch small mistakes in the code under proof.
 - `tests/cross_check.py` and `tests/cross_check/`: the one-off comparison with Go, Rust and Node.

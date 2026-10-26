@@ -176,14 +176,21 @@ def main():
     lossy, problem = run_tests.run_tool("".join(f"lossy {h}\n" for h in hexes))
     if problem or len(lossy) != len(hexes):
         sys.exit(f"the tool failed: {problem}")
+    # The lossy answers that hold a U+FFFD, for byte strings this project
+    # refuses and for those it accepts. Well-formed input can hold U+FFFD
+    # itself, as EF BF BD.
+    refused = [run_tests.has_fffd(l) for o, l in zip(ours, lossy) if o == "REJECT"]
+    accepted = [(bytes.fromhex(h), run_tests.has_fffd(l))
+                for h, o, l in zip(hexes, ours, lossy) if o != "REJECT"]
+    good_fffd = [data for data, has in accepted if has]
+    good_own = sum(1 for data in good_fffd if b"\xef\xbf\xbd" in data)
     lines += [
         "## Lossy decoding",
         "",
-        f"The same byte strings, given to the lossy decoder. "
-        f"{sum(o == 'REJECT' for o in ours)} of its answers have a U+FFFD in place of bad bytes, "
-        "one for each byte string this project refuses. "
-        f"{sum('fffd' in o.split(':', 1)[1].split(',') for o in lossy)} have a U+FFFD anywhere, "
-        "which also counts well-formed input that holds a U+FFFD of its own, `EF BF BD`.",
+        f"The same byte strings, given to the lossy decoder. Of the {len(refused)} that this "
+        f"project refuses, {sum(refused)} have a lossy answer that holds a U+FFFD. Of the "
+        f"{len(accepted)} that it accepts, {len(good_fffd)} do, and {good_own} of those byte "
+        "strings hold `EF BF BD`, the bytes of U+FFFD.",
         "",
         "| Decoder | Differences from this project |",
         "| --- | --- |",

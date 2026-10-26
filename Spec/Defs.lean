@@ -174,8 +174,12 @@ subsequence starting there is a prefix of them (`<+:`).
     unconvertible offset. By D93a, no well-formed sequence starts there,
     not even the bytes of one whole character. So `p` stops inside the
     bytes of the first character of the well-formed sequence. That is,
-    `p` is the start of one character. The proofs show this as
-    `Utf8.Proofs.Lossy.initial_iff`, in `Proofs/Lossy/Table.lean`. -/
+    `p` is the start of one character. The proofs show this with two
+    lemmas in `Proofs/Lossy/Table.lean`. `Utf8.Proofs.Lossy.initial_iff`
+    says that at an unconvertible offset, `Spec.Initial` holds exactly
+    where the table check `prefixB` does. `Utf8.Proofs.Lossy.prefixB_iff`
+    says that `prefixB` holds exactly of the prefixes of the bytes of one
+    character. -/
 def Spec.Initial (p : List UInt8) : Prop :=
   ∃ s, Spec.WellFormed s ∧ p <+: s
 
