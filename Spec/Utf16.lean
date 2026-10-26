@@ -153,7 +153,17 @@ by one U+FFFD, and conversion goes on after it.
 -/
 
 /-- `p` is the initial subsequence of a well-formed UTF-16 code unit
-    sequence. -/
+    sequence.
+
+    As with `Spec.Initial`, that sequence may hold more than one
+    character. Where this definition is used, that changes no answer.
+    `Spec.MaximalSubpart16` asks it only of units at an unconvertible
+    offset. By D93a, no well-formed sequence starts there, not even the
+    units of one whole character. So `p` stops inside the units of the
+    first character, which are at most two. That is, `p` is empty or one
+    high surrogate. The proofs show that each maximal subpart is one
+    unit, as `Utf16.Proofs.maximalSubpart_iff`, in
+    `Proofs/Utf16/Lossy.lean`. -/
 def Spec.Initial16 (p : List UInt16) : Prop :=
   ∃ s, Spec.WellFormed16 s ∧ p <+: s
 
