@@ -165,7 +165,17 @@ Below, an offset is the front of the bytes that remain, and a
 subsequence starting there is a prefix of them (`<+:`).
 -/
 
-/-- `p` is the initial subsequence of a well-formed code unit sequence. -/
+/-- `p` is the initial subsequence of a well-formed code unit sequence.
+
+    That sequence may hold more than one character. The note under D93b
+    speaks of one character: "as many code units as match the beginning
+    of a well-formed character". Where this definition is used, the two
+    readings agree. `Spec.MaximalSubpart` asks it only of bytes at an
+    unconvertible offset. By D93a, no well-formed sequence starts there,
+    not even the bytes of one whole character. So `p` stops inside the
+    bytes of the first character of the well-formed sequence. That is,
+    `p` is the start of one character. The proofs show this as
+    `Utf8.Proofs.Lossy.initial_iff`, in `Proofs/Lossy/Table.lean`. -/
 def Spec.Initial (p : List UInt8) : Prop :=
   ∃ s, Spec.WellFormed s ∧ p <+: s
 
