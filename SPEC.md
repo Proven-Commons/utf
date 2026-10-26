@@ -113,6 +113,8 @@ Like the WHATWG decoders themselves, they read a leading mark in their own order
 
 Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use are in `Spec/Defs.lean` and, for UTF-16, `Spec/Utf16.lean`. They are written from RFC 3629, Table 3-7 and section 3.9.6 (D93a, D93b). Those from RFC 3629 and Table 3-7 are checked against the RFC's examples and against the first and last sequence of each row of the table and the bytes just outside its edges. Those from section 3.9.6 have two direct checks there, and are checked against the standard's examples, Tables 3-8 to 3-11, through `Spec.substitution_vectors` together with `Spec.decodeLossy_iff`.
 
+In these Lean files, a character in a statement or a check is written by its code point when a reader could not see which one it is: as a `\u` escape, or past U+FFFF as `Char.ofNat`. That covers the characters that show as nothing, such as U+FEFF and U+E000, those that look like Latin letters, such as Greek U+0391 and Cyrillic U+0430, the edge code points in `Spec.boundary_vectors`, and every character past U+FFFF. The others show as themselves, such as U+FFFD, € and 二, and the RFC's examples ≢, 한국어 and 日本語. They are written as they are.
+
 | Property | Theorem |
 |----------|---------|
 | The encoder writes each character as the table of RFC 3629, section 3, sets out. | `Spec.encode_eq` |
