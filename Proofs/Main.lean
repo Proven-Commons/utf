@@ -109,7 +109,7 @@ theorem Spec.decodeLossy_of_decode (bs : List UInt8) (cs : List Char) :
   Utf8.Proofs.Lossy.decodeLossy_of_decode bs cs
 
 theorem Spec.decodeLossy_replaces (bs : List UInt8) :
-    Utf8.decode bs = none → '\uFFFD' ∈ Utf8.decodeLossy bs :=
+    Utf8.decode bs = none → '�' ∈ Utf8.decodeLossy bs :=
   Utf8.Proofs.Lossy.decodeLossy_replaces bs
 
 theorem Spec.decodeLossy_encode_append (cs : List Char) (bs : List UInt8) :
