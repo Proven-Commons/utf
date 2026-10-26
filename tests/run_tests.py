@@ -67,6 +67,12 @@ def oracle_lossy(data):
     return "OK:" + ",".join(f"{ord(ch):x}" for ch in data.decode("utf-8", "replace"))
 
 
+def has_fffd(answer):
+    """Whether a decoding answer, as the tool or the oracle writes it,
+    holds U+FFFD."""
+    return bool(answer) and answer.startswith("OK:") and "fffd" in answer[3:].split(",")
+
+
 def oracle_encode(points):
     if any(0xD800 <= p <= 0xDFFF or p > 0x10FFFF for p in points):
         return "INVALID"
@@ -389,11 +395,16 @@ def main():
     lossy_items = [(item, got) for item, got in zip(items, out)
                    if item[1].startswith("lossy ") and item[0] != "error"]
     lossy_agree = sum(1 for item, got in lossy_items if got == item[2])
-    # A U+FFFD in place of bad bytes comes only where the input is not
-    # well formed. A U+FFFD can also be in well-formed input, as EF BF BD.
-    lossy_replaced = sum(1 for item, _ in lossy_items
-                         if oracle_decode(bytes.fromhex(item[1].split(" ", 1)[1])) == "REJECT")
-    lossy_fffd = sum(1 for item, _ in lossy_items if "fffd" in item[2].split(":", 1)[1].split(","))
+    # The tool's lossy answers that hold a U+FFFD, for byte strings that
+    # are not well formed and for those that are. Well-formed input can
+    # hold U+FFFD itself, as EF BF BD.
+    lossy_bad, lossy_good = [], []
+    for item, got in lossy_items:
+        data = bytes.fromhex(item[1].split(" ", 1)[1])
+        (lossy_bad if oracle_decode(data) == "REJECT" else lossy_good).append((data, got))
+    bad_fffd = sum(1 for _, got in lossy_bad if has_fffd(got))
+    good_fffd = [data for data, got in lossy_good if has_fffd(got)]
+    good_own = sum(1 for data in good_fffd if b"\xef\xbf\xbd" in data)
     mutated = sum(1 for item in items if item[3])
     # Each byte string counts once, though it is also sent as `core` and
     # `lossy`.
@@ -419,10 +430,12 @@ def main():
         f"Python: {core_agree} of {len(core_items)}",
         f"- The same byte strings given to the lossy decoder, agreeing with Python's "
         f"`replace` handler: {lossy_agree} of {len(lossy_items)}",
-        f"- Lossy answers with a U+FFFD in place of bad bytes: {lossy_replaced}, one for each "
-        "byte string that is not well formed",
-        f"- Lossy answers with a U+FFFD anywhere: {lossy_fffd}, also counting well-formed input "
-        "that holds a U+FFFD of its own, `EF BF BD`",
+        f"- Lossy answers that hold a U+FFFD, for byte strings that are not well formed: "
+        f"{bad_fffd} of {len(lossy_bad)}",
+        f"- Lossy answers that hold a U+FFFD, for well-formed byte strings: {len(good_fffd)} of "
+        f"{len(lossy_good)}. Of those byte strings, {good_own} hold `EF BF BD`, the bytes of "
+        "U+FFFD",
+        f"- Lossy answers that hold a U+FFFD, in all: {bad_fffd + len(good_fffd)}",
         f"- Malformed requests answered `error`: {malformed.count('error')} of "
         f"{by_label.get('error', 0)}",
         f"- Requests ending in CR LF: every seventh, {len(items) // 7}",

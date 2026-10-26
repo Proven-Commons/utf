@@ -12,8 +12,9 @@ Written by `tests/run_tests.py`. Rerun it to check these numbers.
 - Byte strings decoded: 2358234, of which 148762 well formed and 2209472 refused
 - The same byte strings given to Lean core's `String.fromUTF8?`, agreeing with Python: 2358234 of 2358234
 - The same byte strings given to the lossy decoder, agreeing with Python's `replace` handler: 2358234 of 2358234
-- Lossy answers with a U+FFFD in place of bad bytes: 2209472, one for each byte string that is not well formed
-- Lossy answers with a U+FFFD anywhere: 2212134, also counting well-formed input that holds a U+FFFD of its own, `EF BF BD`
+- Lossy answers that hold a U+FFFD, for byte strings that are not well formed: 2209472 of 2209472
+- Lossy answers that hold a U+FFFD, for well-formed byte strings: 2662 of 148762. Of those byte strings, 2662 hold `EF BF BD`, the bytes of U+FFFD
+- Lossy answers that hold a U+FFFD, in all: 2212134
 - Malformed requests answered `error`: 17 of 17
 - Requests ending in CR LF: every seventh, 1018884
 - Last lines sent alone, with no LF or with CR LF, answered right: 4 of 4
