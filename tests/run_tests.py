@@ -389,7 +389,11 @@ def main():
     lossy_items = [(item, got) for item, got in zip(items, out)
                    if item[1].startswith("lossy ") and item[0] != "error"]
     lossy_agree = sum(1 for item, got in lossy_items if got == item[2])
-    lossy_replaced = sum(1 for item, _ in lossy_items if "fffd" in item[2].split(":", 1)[1].split(","))
+    # A U+FFFD in place of bad bytes comes only where the input is not
+    # well formed. A U+FFFD can also be in well-formed input, as EF BF BD.
+    lossy_replaced = sum(1 for item, _ in lossy_items
+                         if oracle_decode(bytes.fromhex(item[1].split(" ", 1)[1])) == "REJECT")
+    lossy_fffd = sum(1 for item, _ in lossy_items if "fffd" in item[2].split(":", 1)[1].split(","))
     mutated = sum(1 for item in items if item[3])
     # Each byte string counts once, though it is also sent as `core` and
     # `lossy`.
@@ -414,8 +418,11 @@ def main():
         f"- The same byte strings given to Lean core's `String.fromUTF8?`, agreeing with "
         f"Python: {core_agree} of {len(core_items)}",
         f"- The same byte strings given to the lossy decoder, agreeing with Python's "
-        f"`replace` handler: {lossy_agree} of {len(lossy_items)}, of which {lossy_replaced} "
-        "have a U+FFFD in the answer",
+        f"`replace` handler: {lossy_agree} of {len(lossy_items)}",
+        f"- Lossy answers with a U+FFFD in place of bad bytes: {lossy_replaced}, one for each "
+        "byte string that is not well formed",
+        f"- Lossy answers with a U+FFFD anywhere: {lossy_fffd}, also counting well-formed input "
+        "that holds a U+FFFD of its own, `EF BF BD`",
         f"- Malformed requests answered `error`: {malformed.count('error')} of "
         f"{by_label.get('error', 0)}",
         f"- Requests ending in CR LF: every seventh, {len(items) // 7}",

@@ -13,7 +13,7 @@ Written by `tests/cross_check.py`, once, by hand. It is not part of the verified
 
 ## Lossy decoding
 
-The same byte strings, given to the lossy decoder; 2212134 of its answers have a U+FFFD.
+The same byte strings, given to the lossy decoder. 2209472 of its answers have a U+FFFD in place of bad bytes, one for each byte string this project refuses. 2212134 have a U+FFFD anywhere, which also counts well-formed input that holds a U+FFFD of its own, `EF BF BD`.
 
 | Decoder | Differences from this project |
 | --- | --- |
