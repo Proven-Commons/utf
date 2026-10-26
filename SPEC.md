@@ -81,7 +81,7 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | On well-formed bytes, `decodeLossy` reads what `decode` reads. | `Spec.decodeLossy_of_decode` |
 | On bytes that are not well formed, `decodeLossy` gives at least one U+FFFD. | `Spec.decodeLossy_replaces` |
 | Well-formed text before or after bad bytes comes through unchanged. | `Spec.decodeLossy_encode_append`, `Spec.decodeLossy_append_encode` |
-| The examples of section 3.9.6, Tables 3-8 to 3-11, and two cut-short sequences followed by a character. | `Spec.substitution_vectors` |
+| The examples of section 3.9.6, Tables 3-8 to 3-11, and six cut-short sequences followed by a character. | `Spec.substitution_vectors` |
 
 Together, these fix every output.
 

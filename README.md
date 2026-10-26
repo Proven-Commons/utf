@@ -40,7 +40,7 @@ The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean`,
 | `decodeLossy` gives exactly what section 3.9.6 of the Unicode Standard, *U+FFFD Substitution of Maximal Subparts*, sets out: each well-formed sequence becomes its character, and each maximal subpart of bad bytes becomes one U+FFFD. | `Spec.decodeLossy_iff` |
 | On well-formed bytes, `decodeLossy` reads what `decode` reads; on any other bytes it gives at least one U+FFFD. | `Spec.decodeLossy_of_decode`, `Spec.decodeLossy_replaces` |
 | Well-formed text before or after bad bytes comes through unchanged: no U+FFFD takes in any of it. | `Spec.decodeLossy_encode_append`, `Spec.decodeLossy_append_encode` |
-| The examples of Tables 3-8 to 3-11 of the Unicode Standard, and two cut-short sequences followed by a character. | `Spec.substitution_vectors` |
+| The examples of Tables 3-8 to 3-11 of the Unicode Standard, and six cut-short sequences followed by a character. | `Spec.substitution_vectors` |
 
 The command-line tool in `Main.lean` answers `decode`, `lossy` and `encode` requests with these functions directly.
 

@@ -158,8 +158,9 @@ theorem Spec.decodeLossy_append_encode (bs : List UInt8) (cs : List Char) :
     Utf8.decodeLossy (bs ++ Utf8.encode cs) = Utf8.decodeLossy bs ++ cs := sorry
 
 /-- The examples of section 3.9.6 of the Unicode Standard, Tables 3-8
-    to 3-11, and two cases where replacing too many bytes would swallow
-    the next character. -/
+    to 3-11, and six cases of a cut-short sequence followed by a
+    character, where replacing too many bytes would swallow that
+    character. -/
 theorem Spec.substitution_vectors :
     -- Table 3-8, non-shortest forms
     Utf8.decodeLossy [0xC0, 0xAF, 0xE0, 0x80, 0xBF, 0xF0, 0x81, 0x82, 0x41] =
@@ -173,6 +174,10 @@ theorem Spec.substitution_vectors :
     -- Table 3-11, truncated sequences
     Utf8.decodeLossy [0xE1, 0x80, 0xE2, 0xF0, 0x91, 0x92, 0xF1, 0xBF, 0x41] =
       ['�', '�', '�', '�', 'A'] ∧
-    -- A cut-short sequence, then `<` and `A`
+    -- A cut-short sequence, then a character
     Utf8.decodeLossy [0xF0, 0x9F, 0x98, 0x3C] = ['�', '<'] ∧
-    Utf8.decodeLossy [0xE2, 0x41, 0x42] = ['�', 'A', 'B'] := sorry
+    Utf8.decodeLossy [0xE2, 0x41, 0x42] = ['�', 'A', 'B'] ∧
+    Utf8.decodeLossy [0xC3, 0x41] = ['�', 'A'] ∧
+    Utf8.decodeLossy [0xE1, 0x80, 0x41] = ['�', 'A'] ∧
+    Utf8.decodeLossy [0xF0, 0x9F, 0x98, 0x41] = ['�', 'A'] ∧
+    Utf8.decodeLossy [0xE1, 0x80, 0xE2, 0x82, 0xAC] = ['�', '€'] := sorry

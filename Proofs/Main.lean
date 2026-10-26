@@ -133,7 +133,11 @@ theorem Spec.substitution_vectors :
     -- Table 3-11, truncated sequences
     Utf8.decodeLossy [0xE1, 0x80, 0xE2, 0xF0, 0x91, 0x92, 0xF1, 0xBF, 0x41] =
       ['�', '�', '�', '�', 'A'] ∧
-    -- A cut-short sequence, then `<` and `A`
+    -- A cut-short sequence, then a character
     Utf8.decodeLossy [0xF0, 0x9F, 0x98, 0x3C] = ['�', '<'] ∧
-    Utf8.decodeLossy [0xE2, 0x41, 0x42] = ['�', 'A', 'B'] := by
+    Utf8.decodeLossy [0xE2, 0x41, 0x42] = ['�', 'A', 'B'] ∧
+    Utf8.decodeLossy [0xC3, 0x41] = ['�', 'A'] ∧
+    Utf8.decodeLossy [0xE1, 0x80, 0x41] = ['�', 'A'] ∧
+    Utf8.decodeLossy [0xF0, 0x9F, 0x98, 0x41] = ['�', 'A'] ∧
+    Utf8.decodeLossy [0xE1, 0x80, 0xE2, 0x82, 0xAC] = ['�', '€'] := by
   decide
