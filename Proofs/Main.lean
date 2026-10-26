@@ -174,6 +174,17 @@ theorem Spec.utf16_decodeLossy_iff (us : List UInt16) (out : List Char) :
     Utf16.decodeLossy us = out ↔ Spec.Substitutes16 us out :=
   Utf16.Proofs.decodeLossy_iff us out
 
+/-- An isolated surrogate at the front becomes one U+FFFD, and decoding
+    goes on at the very next unit: a high surrogate never takes the unit
+    after it with it. This is the rule of JavaScript's `toWellFormed`,
+    Rust's `String::from_utf16_lossy` and the WHATWG decoders.
+
+    This statement speaks only of a surrogate at the front. Three others
+    carry the rule to any position. `Spec.utf16_decodeLossy_iff` fixes
+    the whole output, as section 3.9.6 sets out. The two append
+    statements, `Spec.utf16_decodeLossy_encode_append` and
+    `Spec.utf16_decodeLossy_append_encode`, keep well-formed text on
+    either side unchanged. -/
 theorem Spec.utf16_decodeLossy_unpaired (w : UInt16) (rest : List UInt16) :
     Spec.Unpaired [] w rest → Utf16.decodeLossy (w :: rest) = '�' :: Utf16.decodeLossy rest :=
   Utf16.Proofs.decodeLossy_unpaired w rest
