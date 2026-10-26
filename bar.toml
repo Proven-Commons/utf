@@ -13,9 +13,12 @@ spec_authors = ["claude"]
 entry_points = ["Main.lean"]
 
 [spec]
-files = ["SPEC.md", "Spec.lean", "Spec/Defs.lean"]
+files = ["SPEC.md", "Spec.lean", "Spec/Defs.lean", "Spec/Utf16.lean"]
 # The code under proof: the functions the statements are about.
-code = ["Utf8.encode", "Utf8.decode", "Utf8.decodeLossy"]
+code = ["Utf8.encode", "Utf8.decode", "Utf8.decodeLossy",
+        "Utf16.encode", "Utf16.decode", "Utf16.decodeLossy", "Utf16.toWellFormed",
+        "Utf16.encodeBE", "Utf16.encodeLE", "Utf16.decodeBE", "Utf16.decodeLE",
+        "Utf16.decodeScheme", "Utf16.decodeLossyBE", "Utf16.decodeLossyLE"]
 
 # One entry per approval, added in a pull request the reviewer approves.
 # [[spec.approval]]

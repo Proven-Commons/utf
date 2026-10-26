@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Differential tests: the Lean UTF-8 codec against Python's, with Lean
-core's compiled check alongside.
+"""Differential tests: the Lean UTF-8 and UTF-16 codecs against Python's,
+with Lean core's compiled UTF-8 check alongside.
 
 The oracle is Python's UTF-8 codec: `bytes.decode("utf-8")`, which
 raises on any byte string that is not well formed, and
@@ -29,6 +29,26 @@ Inputs come from a recorded seed, after fixed sets:
 - lists with a code point that is not a scalar value, which the encoder
   must refuse;
 - malformed requests, which the tool must answer with `error`.
+
+For UTF-16 the oracles are Python's `utf-16-be` and `utf-16-le` codecs,
+strict and with the `replace` handler, and Python's `utf-16` codec for
+text that starts with a byte order mark. Python's `utf-16` codec reads
+text with no mark in the machine's byte order, where RFC 2781 and D98
+say big-endian, so for text with no mark the oracle is `utf-16-be`. For
+`toWellFormed` the oracle is ECMAScript's `CodePointAt`, written out
+below. The inputs:
+
+- every single code unit, 0000 to FFFF, strictly and lossily;
+- every sequence of two units, and of three, over the units at the
+  edges of the surrogate ranges;
+- every byte string of one and two bytes, and of three over edge bytes,
+  through each byte decoder;
+- random lists of code points, encoded, and their units mutated: a unit
+  changed, dropped or added, a surrogate put in, two units swapped, the
+  list cut short; each sent as units and as bytes in both orders, with
+  a byte order mark or an odd byte added to some;
+- lists with a code point that is not a scalar value, which the
+  encoders must refuse.
 
 Every seventh request ends in CR LF.
 
@@ -67,10 +87,52 @@ def oracle_lossy(data):
     return "OK:" + ",".join(f"{ord(ch):x}" for ch in data.decode("utf-8", "replace"))
 
 
-def oracle_encode(points):
+def oracle_encode(points, codec="utf-8"):
     if any(0xD800 <= p <= 0xDFFF or p > 0x10FFFF for p in points):
         return "INVALID"
-    return "".join(map(chr, points)).encode("utf-8").hex()
+    return "".join(map(chr, points)).encode(codec).hex()
+
+
+def show_points(text):
+    return "OK:" + ",".join(f"{ord(ch):x}" for ch in text)
+
+
+def oracle_strict(data, codec):
+    try:
+        return show_points(data.decode(codec))
+    except UnicodeDecodeError:
+        return "REJECT"
+
+
+def oracle_utf16_scheme(data):
+    """RFC 2781, section 4.3, and D98: a byte order mark, read by Python's
+    `utf-16` codec; with no mark, big-endian."""
+    if data[:2] in (b"\xfe\xff", b"\xff\xfe"):
+        return oracle_strict(data, "utf-16")
+    return oracle_strict(data, "utf-16-be")
+
+
+def units_hex(units):
+    return "".join(f"{u:04x}" for u in units)
+
+
+def oracle_well_formed(units):
+    """ECMAScript's `String.prototype.toWellFormed`, by `CodePointAt`:
+    a unit is an unpaired surrogate when it is a trailing surrogate, or
+    a leading surrogate that no trailing surrogate follows."""
+    out, k = [], 0
+    while k < len(units):
+        first = units[k]
+        if 0xD800 <= first <= 0xDBFF and k + 1 < len(units) and 0xDC00 <= units[k + 1] <= 0xDFFF:
+            out += units[k:k + 2]
+            k += 2
+        elif 0xD800 <= first <= 0xDFFF:
+            out.append(0xFFFD)
+            k += 1
+        else:
+            out.append(first)
+            k += 1
+    return units_hex(out)
 
 
 # The fixed sets.
@@ -184,6 +246,69 @@ def mutate(rng, data):
     return bytes(b)
 
 
+# UTF-16 code units at the edges of the surrogate ranges, and some
+# characters that matter.
+EDGE_UNITS = [0x0000, 0x0041, 0xD7FF, 0xD800, 0xD801, 0xDBFF, 0xDC00, 0xDC01, 0xDFFF,
+              0xE000, 0xFEFF, 0xFFFD, 0xFFFE, 0xFFFF]
+SHORT_UNITS = [0x0041, 0xD800, 0xDBFF, 0xDC00, 0xDFFF, 0xFFFF]
+EDGE_BYTES = [0x00, 0x41, 0xD7, 0xD8, 0xDB, 0xDC, 0xDF, 0xE0, 0xFE, 0xFF]
+
+
+def random_unit(rng):
+    r = rng.random()
+    if r < 0.4:
+        return rng.choice([rng.randint(0xD800, 0xDBFF), rng.randint(0xDC00, 0xDFFF)])
+    if r < 0.6:
+        return rng.choice(EDGE_UNITS)
+    return rng.randint(0, 0xFFFF)
+
+
+def mutate_units(rng, units):
+    u = list(units)
+    op = rng.randrange(6)
+    if op == 0 and u:
+        u[rng.randrange(len(u))] = random_unit(rng)
+    elif op == 1 and u:
+        del u[rng.randrange(len(u))]
+    elif op == 2:
+        u.insert(rng.randint(0, len(u)), random_unit(rng))
+    elif op == 3 and len(u) > 1:
+        i = rng.randrange(len(u) - 1)
+        u[i], u[i + 1] = u[i + 1], u[i]
+    elif op == 4 and u:
+        u = u[: rng.randrange(len(u))]
+    else:
+        u += [random_unit(rng) for _ in range(rng.randint(1, 3))]
+    return u
+
+
+def unit_requests(label, units, mutated=False):
+    """Requests for one list of code units: strict, lossy and
+    `toWellFormed`."""
+    data = b"".join(u.to_bytes(2, "big") for u in units)
+    h = units_hex(units)
+    return [(label, f"dec16 {h}", oracle_strict(data, "utf-16-be"), mutated),
+            (label + " (lossy16)", f"lossy16 {h}", show_points(data.decode("utf-16-be", "replace")), False),
+            (label + " (wf16)", f"wf16 {h}", oracle_well_formed(units), False)]
+
+
+def byte_requests(label, data, mutated=False):
+    """Requests for one byte string, through each UTF-16 byte decoder."""
+    h = data.hex()
+    return [(label, f"decbe {h}", oracle_strict(data, "utf-16-be"), mutated),
+            (label + " (decle)", f"decle {h}", oracle_strict(data, "utf-16-le"), False),
+            (label + " (decutf16)", f"decutf16 {h}", oracle_utf16_scheme(data), False),
+            (label + " (lossybe)", f"lossybe {h}", show_points(data.decode("utf-16-be", "replace")), False),
+            (label + " (lossyle)", f"lossyle {h}", show_points(data.decode("utf-16-le", "replace")), False)]
+
+
+def encode16_requests(label, points):
+    arg = ",".join(f"{p:x}" for p in points) or "-"
+    return [(label, f"enc16 {arg}", oracle_encode(points, "utf-16-be"), False),
+            (label + " (encbe)", f"encbe {arg}", oracle_encode(points, "utf-16-be"), False),
+            (label + " (encle)", f"encle {arg}", oracle_encode(points, "utf-16-le"), False)]
+
+
 def invalid_points(rng):
     points = random_points(rng) or [random_point(rng)]
     points[rng.randrange(len(points))] = rng.choice(
@@ -209,10 +334,25 @@ MALFORMED = [
     ("encode 41 42", "two arguments"),
     ("", "an empty line"),
     (" decode 41", "a leading space"),
+    ("dec16 d80", "units not in fours"),
+    ("dec16 D800", "units in upper case"),
+    ("dec16", "no argument"),
+    ("lossy16 004", "units not in fours"),
+    ("wf16 00410", "units not in fours"),
+    ("enc16", "no argument"),
+    ("enc16 41,,42", "an empty code point"),
+    ("encbe 4G", "a code point that is not hex"),
+    ("encle 41 42", "two arguments"),
+    ("decbe 4", "an odd number of hex digits"),
+    ("decle 0X41", "not hex"),
+    ("decutf16 FEFF", "hex in upper case"),
+    ("lossybe", "no argument"),
+    ("lossyle 4100 ", "a trailing space"),
+    ("DEC16 0041", "operations are lower case"),
 ]
 
 AT_EOF = [("decode 41", "OK:41"), ("encode 41", "41"), ("decode 41\r\n", "OK:41"),
-          ("lossy c0", "OK:fffd")]
+          ("lossy c0", "OK:fffd"), ("dec16 d83dde00", "OK:1f600"), ("lossyle 00d841", "OK:fffd")]
 
 
 def decode_pair(label, data, mutated=False):
@@ -251,6 +391,48 @@ def cases(seed, count):
         else:
             points = invalid_points(rng)
             yield ("encode invalid", "encode " + ",".join(f"{p:x}" for p in points), "INVALID", False)
+    yield from utf16_cases(rng, count)
+
+
+def utf16_cases(rng, count):
+    for u in range(0x10000):
+        yield from unit_requests("utf16 grid", [u])
+    for n in (2, 3):
+        for units in itertools.product(EDGE_UNITS if n == 2 else SHORT_UNITS, repeat=n):
+            yield from unit_requests("utf16 grid", list(units))
+    for n in range(256):
+        yield from byte_requests("bytes grid", bytes([n]))
+    for a in range(256):
+        for b in range(256):
+            yield from byte_requests("bytes grid", bytes([a, b]))
+    for data in itertools.product(EDGE_BYTES, repeat=3):
+        yield from byte_requests("bytes grid", bytes(data))
+    for _ in range(count):
+        r = rng.random()
+        if r < 0.15:
+            yield from encode16_requests("enc16", random_points(rng))
+        elif r < 0.2:
+            yield from encode16_requests("enc16 invalid", invalid_points(rng))
+        else:
+            points = random_points(rng)
+            units = [int.from_bytes(b, "big") for b in
+                     (lambda d: [d[i:i + 2] for i in range(0, len(d), 2)])("".join(map(chr, points)).encode("utf-16-be"))]
+            mutated = r >= 0.35
+            if mutated:
+                base = units
+                while units == base:
+                    units = mutate_units(rng, base)
+            yield from unit_requests("utf16 mutated" if mutated else "utf16 valid", units, mutated)
+            order = rng.choice(["big", "little"])
+            data = b"".join(u.to_bytes(2, order) for u in units)
+            extra = rng.random()
+            if extra < 0.2:
+                data = (b"\xfe\xff" if order == "big" else b"\xff\xfe") + data
+            elif extra < 0.3:
+                data += bytes([rng.getrandbits(8)])
+            elif extra < 0.35:
+                data = bytes([rng.getrandbits(8)]) + data
+            yield from byte_requests("bytes mutated" if mutated else "bytes valid", data, mutated)
 
 
 def run_tool(data, timeout=TIMEOUT):
@@ -308,8 +490,10 @@ def run_tool(data, timeout=TIMEOUT):
 
 
 def oracle():
-    return (f"Python {platform.python_version()} `utf-8` codec, strict and with the "
-            "`replace` error handler")
+    return (f"Python {platform.python_version()} `utf-8`, `utf-16-be` and `utf-16-le` codecs, "
+            "strict and with the `replace` error handler, and its `utf-16` codec for text "
+            "with a byte order mark; for `toWellFormed`, ECMAScript's `CodePointAt`, "
+            "written in tests/run_tests.py")
 
 
 def lean_version():
@@ -382,11 +566,37 @@ def main():
                    if item[1].startswith("lossy ") and item[0] != "error"]
     lossy_agree = sum(1 for item, got in lossy_items if got == item[2])
     lossy_replaced = sum(1 for item, _ in lossy_items if "fffd" in item[2].split(":", 1)[1].split(","))
+    u16 = [(item, got) for item, got in zip(items, out) if item[1].startswith("dec16 ")
+           and item[0] != "error"]
+    u16_ok = sum(1 for item, _ in u16 if item[2].startswith("OK"))
+    u16_lossy = [(item, got) for item, got in zip(items, out) if item[1].startswith("lossy16 ")
+                 and item[0] != "error"]
+    u16_wf = [(item, got) for item, got in zip(items, out) if item[1].startswith("wf16 ")
+              and item[0] != "error"]
+    b16 = [(item, got) for item, got in zip(items, out) if item[1].startswith("decbe ")
+           and item[0] != "error"]
+    b16_lossy = [(item, got) for item, got in zip(items, out)
+                 if item[1].startswith(("lossybe ", "lossyle ")) and item[0] != "error"]
+    b16_odd = sum(1 for item, _ in b16 if len(item[1].split(" ", 1)[1]) % 4 == 2)
+    # Text with no byte order mark that Python's `utf-16` codec would
+    # read little-endian, giving a different answer.
+    no_mark_differs = 0
+    for item, _ in b16:
+        data = bytes.fromhex(item[1].split(" ", 1)[1])
+        if data[:2] not in (b"\xfe\xff", b"\xff\xfe") and \
+                oracle_strict(data, "utf-16") != oracle_utf16_scheme(data):
+            no_mark_differs += 1
+    enc16 = sum(1 for item in items if item[1].startswith("enc16 ") and item[0] != "error")
     mutated = sum(1 for item in items if item[3])
     # Each byte string counts once, though it is also sent as `core` and
-    # `lossy`.
+    # `lossy`; each list of units once, though it is also sent as
+    # `lossy16` and `wf16`; each UTF-16 byte string once, though it goes
+    # through five decoders; each list of code points once, though it
+    # goes to three encoders.
     inputs = sum(1 for item in items
-                 if item[0] == "error" or not item[1].startswith(("core ", "lossy ")))
+                 if item[0] == "error" or not item[1].startswith(
+                     ("core ", "lossy ", "lossy16 ", "wf16 ", "decle ", "decutf16 ", "lossybe ",
+                      "lossyle ", "encbe ", "encle ")))
     malformed = [got for item, got in zip(items, out) if item[0] == "error"]
 
     lines = [
@@ -398,7 +608,10 @@ def main():
         f"- Lean: {lean_version()}",
         f"- Seed: {args.seed}",
         f"- Inputs: {inputs}",
-        f"- Requests: {len(items)}, each decoded byte string also sent as `core` and as `lossy`",
+        f"- Requests: {len(items)}, each decoded byte string also sent as `core` and as `lossy`; "
+        "each list of UTF-16 units as `dec16`, `lossy16` and `wf16`; each UTF-16 byte string to "
+        "`decbe`, `decle`, `decutf16`, `lossybe` and `lossyle`; each list of code points for "
+        "UTF-16 to `enc16`, `encbe` and `encle`",
         f"- Mutated: {mutated} of the inputs are mutated encodings",
         "- By kind: " + ", ".join(f"{k} {v}" for k, v in sorted(by_label.items())),
         f"- Byte strings decoded: {len(decodes)}, of which {accepted} well formed and "
@@ -408,6 +621,18 @@ def main():
         f"- The same byte strings given to the lossy decoder, agreeing with Python's "
         f"`replace` handler: {lossy_agree} of {len(lossy_items)}, of which {lossy_replaced} "
         "have a U+FFFD in the answer",
+        f"- UTF-16 unit lists decoded: {len(u16)}, of which {u16_ok} well formed and "
+        f"{len(u16) - u16_ok} refused; the lossy decoder agreeing with Python's `replace` "
+        f"handler on {sum(1 for i, g in u16_lossy if g == i[2])} of {len(u16_lossy)}; "
+        f"`toWellFormed` agreeing with ECMAScript's rule on {sum(1 for i, g in u16_wf if g == i[2])} "
+        f"of {len(u16_wf)}",
+        f"- UTF-16 byte strings: {len(b16)}, of which {b16_odd} of odd length; the lossy byte "
+        f"decoders agreeing with Python's `replace` handler on "
+        f"{sum(1 for i, g in b16_lossy if g == i[2])} of {len(b16_lossy)}",
+        f"- Byte strings with no byte order mark that Python's own `utf-16` codec, reading "
+        f"them little-endian, would read differently from RFC 2781's big-endian rule: "
+        f"{no_mark_differs}",
+        f"- Code point lists given to the UTF-16 encoders: {enc16}",
         f"- Malformed requests answered `error`: {malformed.count('error')} of "
         f"{by_label.get('error', 0)}",
         f"- Requests ending in CR LF: every seventh, {len(items) // 7}",

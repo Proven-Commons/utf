@@ -28,3 +28,22 @@ Go's `range` loop follows another policy, on purpose: the Go specification says 
 - Go, a `range` loop over the string (go version go1.24.7 linux/amd64): `e0a0`: this project `OK:fffd`, theirs `OK:fffd,fffd`
 - Go, a `range` loop over the string (go version go1.24.7 linux/amd64): `e0a1`: this project `OK:fffd`, theirs `OK:fffd,fffd`
 - Go, a `range` loop over the string (go version go1.24.7 linux/amd64): `e0a2`: this project `OK:fffd`, theirs `OK:fffd,fffd`
+
+## UTF-16
+
+- Lists of code units: 186008, of which 134596 this project accepts
+- Byte strings: 186852
+
+| Operation | Other decoder | Differences from this project |
+| --- | --- | --- |
+| Units, strict | Rust `String::from_utf16` (rustc 1.97.0 (2d8144b78 2026-07-07)) | 0 |
+| Units, strict | Node `isWellFormed` (v22.22.0) | 0 |
+| Units, lossy | Rust `String::from_utf16_lossy` (rustc 1.97.0 (2d8144b78 2026-07-07)) | 0 |
+| Units, lossy | Node `toWellFormed` (v22.22.0) | 0 |
+| Units, lossy | Go `utf16.Decode` (go version go1.24.7 linux/amd64) | 0 |
+| `toWellFormed`, as units | Node `toWellFormed` (v22.22.0) | 0 |
+| UTF-16BE, strict | Node `TextDecoder`, fatal, `ignoreBOM` set (v22.22.0) | 0 |
+| UTF-16LE, strict | Node `TextDecoder`, fatal, `ignoreBOM` set (v22.22.0) | 0 |
+| UTF-16BE, lossy | Node `TextDecoder`, not fatal, `ignoreBOM` set (v22.22.0) | 0 |
+| UTF-16LE, lossy | Node `TextDecoder`, not fatal, `ignoreBOM` set (v22.22.0) | 0 |
+
