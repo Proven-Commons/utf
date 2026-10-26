@@ -17,7 +17,7 @@ Inputs come from a recorded seed, after fixed sets:
   of the continuation range;
 - four-byte strings led by 0xF0 to 0xF7 over every second byte, with the
   third and fourth at the edges;
-- the hard cases from Markus Kuhn's UTF-8 decoder test file;
+- every test in Markus Kuhn's UTF-8 decoder test file;
 - random lists of code points, weighted to the edges of each length and
   of the surrogates, encoded and decoded;
 - mutations of those encodings: a byte changed, dropped, added or
@@ -96,14 +96,18 @@ def four_byte():
                     yield bytes([a, b, c, d])
 
 
-# The hard cases of Markus Kuhn's UTF-8 decoder test file
+# Every test of Markus Kuhn's UTF-8 decoder test file
 # (https://www.cl.cam.ac.uk/~mgk25/ucs/examples/UTF-8-test.txt),
-# sections 2 to 5, written out here.
+# sections 1 to 5, written out here. The oracle gives each answer.
 KUHN = [
+    # 1: the Greek word "kosme", accepted.
+    "cebae1bdb9cf83cebcceb5",
     "00", "c280", "e0a080", "f0908080", "f888808080", "fc8480808080",
     "7f", "dfbf", "efbfbf", "f7bfbfbf", "fbbfbfbfbf", "fdbfbfbfbfbf",
     "ed9fbf", "ee8080", "efbfbd", "f48fbfbf", "f4908080",
     "80", "bf", "80bf", "80bf80", "80bf80bf", "80bf80bf80",
+    # 3.1.7 and 3.1.8: six and seven continuation bytes, refused.
+    "80bf80bf80bf", "80bf80bf80bf80",
     "".join(f"{b:02x}" for b in range(0x80, 0xC0)),
     "".join(f"{b:02x}20" for b in range(0xC0, 0xE0)),
     "".join(f"{b:02x}20" for b in range(0xE0, 0xF0)),
@@ -121,6 +125,10 @@ KUHN = [
     "eda080edb080", "eda080edbfbf", "edadbfedb080", "edadbfedbfbf",
     "edae80edb080", "edae80edbfbf", "edafbfedb080", "edafbfedbfbf",
     "efbfbe", "efbfbf", "efb790", "efb7af",
+    # 5.3.3: the noncharacters U+FDD0 to U+FDEF in a row. 5.3.4: U+nFFFE and
+    # U+nFFFF for n = 1 to 0x10. These are scalar values, so both are accepted.
+    "".join(f"efb7{b:02x}" for b in range(0x90, 0xB0)),
+    "".join(chr(n << 16 | k) for n in range(1, 0x11) for k in (0xFFFE, 0xFFFF)).encode("utf-8").hex(),
 ]
 
 
