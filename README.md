@@ -76,7 +76,7 @@ python3 tests/run_tests.py
 
 `lake comparator` is part of Lake in Lean 4.35.0, the toolchain that `lean-toolchain` pins and elan installs. `lake comparator --paranoid` builds the statements and the proofs in a sandbox. It checks that each theorem in `Proofs/` proves exactly the statement in `Spec.lean`, using only the axioms `propext`, `Classical.choice`, and `Quot.sound`, and replays it through every kernel shipped with Lean.
 
-The test script builds the tool alone, not the proofs, and compares it with Python's strict UTF-8 codec. It runs every byte string of one and two bytes, a grid of three- and four-byte strings, and random and mutated inputs from a recorded seed. It then rewrites `tests/TEST-RESULTS.md`.
+The test script builds the tool alone, not the proofs, and compares it with Python's strict UTF-8 codec. It runs every byte string of one and two bytes, a grid of three- and four-byte strings, and random and mutated inputs from a recorded seed. It then rewrites `tests/TEST-RESULTS.md`. `tests/planted_bugs.py` plants seven small bugs in the code under proof, one at a time in a copy, and `tests/PLANTED-BUGS.md` records that the tests catch six of them, why the seventh changes no answer, and that each of the seven stops the proofs from building.
 
 ## Layout
 
@@ -90,4 +90,5 @@ The test script builds the tool alone, not the proofs, and compares it with Pyth
 - `bar.toml`: the record for the bar check: status, authors, approvals, and where things are.
 - `SPEC.md`: the specification in plain words.
 - `tests/run_tests.py`: the differential tests.
+- `tests/planted_bugs.py`: the planted bugs, which check that the tests catch small mistakes in the code under proof.
 - `tests/cross_check.py` and `tests/cross_check/`: the one-off comparison with Go, Rust and Node.
