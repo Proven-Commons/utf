@@ -77,7 +77,7 @@ def Spec.encode16 (cs : List Char) : List UInt16 :=
 
 -- D91: "In UTF-16, the code point sequence <004D, 0430, 4E8C, 10302> is
 -- represented as <004D 0430 4E8C D800 DF02>".
-example : Spec.encode16 ['M', 'а', '二', Char.ofNat 0x10302] =
+example : Spec.encode16 ['M', '\u0430', '二', Char.ofNat 0x10302] =
     [0x004D, 0x0430, 0x4E8C, 0xD800, 0xDF02] := by decide +kernel
 
 -- RFC 2781, section 5: U+12345, then "=Ra".
@@ -241,15 +241,15 @@ example : Spec.serializeLE [0x004D, 0x0430, 0x4E8C, 0xD800, 0xDF02] =
 
 -- D98's three serializations of it all read as its characters.
 example : Spec.SchemeReads [0xFE, 0xFF, 0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02]
-      ['M', 'а', '二', Char.ofNat 0x10302] ∧
+      ['M', '\u0430', '二', Char.ofNat 0x10302] ∧
     Spec.SchemeReads [0xFF, 0xFE, 0x4D, 0x00, 0x30, 0x04, 0x8C, 0x4E, 0x00, 0xD8, 0x02, 0xDF]
-      ['M', 'а', '二', Char.ofNat 0x10302] ∧
+      ['M', '\u0430', '二', Char.ofNat 0x10302] ∧
     Spec.SchemeReads [0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02]
-      ['M', 'а', '二', Char.ofNat 0x10302] := by
+      ['M', '\u0430', '二', Char.ofNat 0x10302] := by
   unfold Spec.SchemeReads; decide +kernel
 -- With a mark, the mark is not text; text that starts with U+FEFF and has
 -- no mark cannot be told from text after a mark, and reads as the latter.
-example : ¬ Spec.SchemeReads [0xFE, 0xFF, 0x00, 0x41] ['﻿', 'A'] := by
+example : ¬ Spec.SchemeReads [0xFE, 0xFF, 0x00, 0x41] ['\uFEFF', 'A'] := by
   unfold Spec.SchemeReads; decide +kernel
 
 /-! ## The WHATWG Encoding Standard, section 14.2.1, shared UTF-16 decoder
@@ -351,7 +351,7 @@ example : Spec.whatwgDecode true [0xD8, 0x3D, 0xDE, 0x00] = [Char.ofNat 0x1F600]
     Spec.whatwgDecode false [0x41, 0x00, 0x42] = ['A', '�'] ∧
     Spec.whatwgDecode true [0xD8, 0x00] = ['�'] ∧
     Spec.whatwgDecode false [0x00, 0xD8, 0x41] = ['�'] ∧
-    Spec.whatwgDecode true [0xFE, 0xFF, 0x00, 0x41] = ['﻿', 'A'] := by
+    Spec.whatwgDecode true [0xFE, 0xFF, 0x00, 0x41] = ['\uFEFF', 'A'] := by
   decide +kernel
 
 /-! ## ECMAScript, `String.prototype.toWellFormed`
