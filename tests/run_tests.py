@@ -45,8 +45,8 @@ below. The inputs:
   through each byte decoder;
 - random lists of code points, encoded, and their units mutated: a unit
   changed, dropped or added, a surrogate put in, two units swapped, the
-  list cut short; each sent as units and as bytes in both orders, with
-  a byte order mark or an odd byte added to some;
+  list cut short; each sent as units, and as bytes in one byte order
+  chosen at random, with a byte order mark or an odd byte added to some;
 - lists with a code point that is not a scalar value, which the
   encoders must refuse.
 
@@ -335,6 +335,11 @@ MALFORMED = [
     ("", "an empty line"),
     (" decode 41", "a leading space"),
     ("dec16 d80", "units not in fours"),
+    ("dec16 00", "units not in fours, in pairs"),
+    ("lossy16 004100", "units not in fours, in pairs"),
+    ("wf16 d800dc", "units not in fours, in pairs"),
+    ("enc16 ", "an empty list of code points"),
+    ("encbe 4A", "a code point in upper case"),
     ("dec16 D800", "units in upper case"),
     ("dec16", "no argument"),
     ("lossy16 004", "units not in fours"),

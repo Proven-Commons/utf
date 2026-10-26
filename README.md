@@ -15,7 +15,7 @@ For UTF-16 they show:
 - The encoder writes what RFC 2781 sets out.
 - The decoder accepts a list of code units exactly when it is the encoding of some list of characters, so it refuses exactly the lists with an isolated surrogate, one in no surrogate pair.
 - The lossy decoder follows section 3.9.6 too. In UTF-16 that comes to one U+FFFD for each isolated surrogate, and `toWellFormed` does what JavaScript's `String.prototype.toWellFormed` does.
-- UTF-16BE, UTF-16LE and the UTF-16 encoding scheme, with its byte order mark, read and write bytes as RFC 2781 and the Unicode Standard set out.
+- UTF-16BE and UTF-16LE read and write bytes as D96 and D97 of the Unicode Standard set out, and the UTF-16 encoding scheme, with its byte order mark, is read as D98 and RFC 2781 say.
 - The lossy byte decoders give exactly what the WHATWG Encoding Standard's UTF-16BE and UTF-16LE decoders give.
 
 It is tested against Python's UTF-8 and UTF-16 codecs, strict and with `errors="replace"`, with Lean core's compiled UTF-8 check compared alongside; `tests/TEST-RESULTS.md` has the record. It is a project of [Proven Commons](https://github.com/Proven-Commons/mission), built to the verified bar published there.
@@ -63,7 +63,7 @@ The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean` 
 | `Utf16.decode` fails exactly when some unit is an isolated surrogate: a high surrogate with no low surrogate after it, or a low surrogate with no high surrogate before it. | `Spec.utf16_decode_none_iff` |
 | The number of UTF-16 units is one for each character, and one more for each character from U+10000 up. | `Spec.utf16_encode_length` |
 | `Utf16.decodeLossy` gives exactly the conversion of section 3.9.6, written for UTF-16 code units. | `Spec.utf16_decodeLossy_iff` |
-| An isolated surrogate becomes one U+FFFD, and decoding goes on at the very next unit, so a high surrogate never takes the unit after it with it. That is what section 3.9.6 comes to in UTF-16, where each maximal subpart is one isolated surrogate (a lemma about the definitions, `Utf16.Proofs.maximalSubpart_iff`). | `Spec.utf16_decodeLossy_unpaired` |
+| An isolated surrogate becomes one U+FFFD, and decoding goes on at the very next unit, so a high surrogate never takes the unit after it with it. That is what section 3.9.6 comes to in UTF-16. The proofs go through a lemma, `Utf16.Proofs.maximalSubpart_iff`, that each maximal subpart in UTF-16 is one isolated surrogate. It is a fact about the definitions alone, so the bar does not take it as one of the approved statements. | `Spec.utf16_decodeLossy_unpaired` |
 | On well-formed units, `Utf16.decodeLossy` reads what `Utf16.decode` reads; on any other units it gives at least one U+FFFD. | `Spec.utf16_decodeLossy_of_decode`, `Spec.utf16_decodeLossy_replaces` |
 | Well-formed text before or after bad units comes through unchanged. | `Spec.utf16_decodeLossy_encode_append`, `Spec.utf16_decodeLossy_append_encode` |
 | `toWellFormed` keeps the number of units, puts 0xFFFD in place of each isolated surrogate and keeps every other unit, as ECMAScript's `String.prototype.toWellFormed` does. | `Spec.utf16_toWellFormed` |
@@ -72,7 +72,7 @@ The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean` 
 | The decoder for the UTF-16 encoding scheme reads a byte order mark as D98 and RFC 2781, section 4.3, say: FE FF for big-endian, FF FE for little-endian, the mark not part of the text, and big-endian with no mark. | `Spec.utf16_decodeScheme_iff` |
 | The lossy byte decoders give exactly what the WHATWG Encoding Standard's UTF-16BE and UTF-16LE decoders give, run as the standard writes them. | `Spec.utf16_whatwg` |
 | On whole units, the lossy byte decoders give the conversion of section 3.9.6, so the WHATWG decoders and the Unicode Standard agree. | `Spec.utf16_decodeLossyBytes_units` |
-| The examples of D91 and D96 to D98 of the Unicode Standard and of RFC 2781, section 5, both ways; the ends of the ranges; byte order marks; isolated surrogates refused and replaced; and a high surrogate cut off by an odd byte, which the WHATWG decoders turn into one U+FFFD. | `Spec.utf16_vectors` |
+| The examples of D91, D96 and D97 of the Unicode Standard and of RFC 2781, section 5, both ways, and the texts of D98 and RFC 2781 with a byte order mark, read; the ends of the ranges; byte order marks; isolated surrogates refused and replaced; and a high surrogate cut off by an odd byte, which the WHATWG decoders turn into one U+FFFD. | `Spec.utf16_vectors` |
 
 The command-line tool in `Main.lean` answers `decode`, `lossy` and `encode` requests, and each UTF-16 request, with these functions directly.
 
@@ -81,8 +81,10 @@ The command-line tool in `Main.lean` answers `decode`, `lossy` and `encode` requ
 - Lean core's compiled check. At run time, `String.fromUTF8?` runs C code, `lean_string_validate_utf8`, in place of the definition `Spec.fromUTF8?_eq` is about. The differential tests compare that C code with the proved decoder.
 - Reading requests and printing answers in `Main.lean`: the hex parsing and printing, and the request format. The differential tests cover them, with malformed requests and CR LF line endings.
 - Other replacement policies. The lossy decoder follows section 3.9.6 only. It has no mode that puts U+FFFD in place of each bad byte on its own, as a Go `range` loop does. A byte order mark is read as a character, not stripped.
-- For UTF-16: byte order marks in the lossy byte decoders. They are the WHATWG decoders, which read a mark as U+FEFF. The WHATWG `decode` algorithm and `TextDecoder` drop a mark first; that step is not here. The encoders never write a mark, and nothing here writes the UTF-16 encoding scheme with one.
-- For UTF-16: other ways to choose a byte order. With no mark, `decodeScheme` reads big-endian, as RFC 2781 and D98 say, where Python's `utf-16` codec and the WHATWG Encoding Standard's `utf-16` label read little-endian.
+- For UTF-16: byte order marks in the lossy byte decoders. They are the WHATWG decoders themselves, which read a leading FE FF (UTF-16BE) or FF FE (UTF-16LE) as U+FEFF. The standard's other steps are not here. Its `decode` algorithm sniffs a mark first, and a leading EF BB BF, FE FF or FF FE then picks the encoding and is skipped. `TextDecoder`, unless `ignoreBOM` is set, drops a U+FEFF that the decoder gives at the start.
+- For UTF-16: writing the UTF-16 encoding scheme. The encoders never write a mark. So `encodeBE` of text that starts with U+FEFF begins FE FF, which `decodeScheme` reads as a mark, not as text.
+- For UTF-16: the error rule of RFC 2781, sections 4.1 and 4.2. It calls FF FE in UTF-16BE, and FE FF in UTF-16LE, an error, since it takes U+FFFE as no character. Here those bytes read as U+FFFE, a noncharacter, as the Unicode Standard (D91), Python, Node and Rust read them.
+- For UTF-16: other ways to choose a byte order. With no mark, `decodeScheme` reads big-endian, as RFC 2781 and D98 say, where Python's `utf-16` codec reads it in the machine's byte order, little-endian on most machines, and the WHATWG Encoding Standard's `utf-16` label means little-endian.
 - UTF-32, and Unicode normalization.
 - Speed and size. The code works on lists and recurses once per character, which suits proofs, not bulk data. With an 8 MB stack, a request of 12 million bytes is answered, but one of 16 million runs out of stack: the program stops, with the answers before it already written, and never gives a wrong one.
 
@@ -125,7 +127,7 @@ The test script compares the tool with Python's UTF-8 and UTF-16 codecs, strict 
 - `Utf8/Codec.lean`, `Utf8/Lossy.lean`, `Utf16/Codec.lean` and `Utf16/Bytes.lean`: the code under proof.
 - `Spec.lean`: the statements, with `sorry` for proofs. A reviewer approves this file.
 - `Spec/Defs.lean`: the definitions the statements use, written from RFC 3629, Table 3-7 and section 3.9.6, with checks against the RFC's examples.
-- `Spec/Utf16.lean`: the definitions the UTF-16 statements use, written from RFC 2781, the Unicode Standard, the WHATWG Encoding Standard and ECMAScript, with checks against their examples.
+- `Spec/Utf16.lean`: the definitions the UTF-16 statements use, written from RFC 2781, the Unicode Standard, the WHATWG Encoding Standard and ECMAScript, with checks against the examples of the first two and against each step of the WHATWG decoder.
 - `Proofs.lean` and `Proofs/`: the proofs, under the same names.
 - `Main.lean`: the command-line tool the tests drive.
 - `lakefile.toml`: the build. It names the package and its version, its libraries and executable, and the default targets, and sets nothing else.

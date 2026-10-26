@@ -10,8 +10,8 @@
   exactly the Unicode scalar values: 0 to 0xD7FF and 0xE000 to 0x10FFFF.
 
   The `example`s check the definitions against the examples of D91,
-  D96 to D98 and RFC 2781, section 5, and at the edges of the surrogate
-  ranges.
+  D96 to D98 and RFC 2781, section 5, at the edges of the surrogate
+  ranges, and on the cases of the WHATWG decoder's steps.
 -/
 
 import Spec.Defs
@@ -131,6 +131,20 @@ example : Spec.WellFormedChar16 [0xD7FF] ∧ Spec.WellFormedChar16 [0xE000] ∧
     ¬ Spec.WellFormedChar16 [0xD800] ∧ ¬ Spec.WellFormedChar16 [0xDFFF] := by
   unfold Spec.WellFormedChar16; decide
 
+-- In <0041 D800 DC00 DC00>, the second low surrogate is isolated: the
+-- unit before it is a low surrogate. The high surrogate is not: a low
+-- surrogate follows it.
+example : Spec.Unpaired [0x0041, 0xD800, 0xDC00] 0xDC00 [] := by
+  refine Or.inr ⟨by unfold Spec.Low; decide, ?_⟩
+  rintro ⟨l', v, h, hv⟩
+  have : v = 0xDC00 := by
+    have := congrArg List.getLast? h; simpa using this.symm
+  subst this; unfold Spec.High at hv; revert hv; decide
+example : ¬ Spec.Unpaired [0x0041] 0xD800 [0xDC00, 0xDC00] := by
+  rintro (⟨-, h⟩ | ⟨hl, -⟩)
+  · exact h ⟨0xDC00, [0xDC00], rfl, by unfold Spec.Low; decide⟩
+  · unfold Spec.Low at hl; revert hl; decide
+
 /-! ## The Unicode Standard, section 3.9.6, for UTF-16
 
 D93a and D93b, as `Spec/Defs.lean` quotes them for UTF-8, over UTF-16
@@ -182,6 +196,13 @@ putc(u >> 8,   f);                     /* output high-order byte */
 putc(u & 0xFF, f);                     /* then low-order */
 ```
 
+RFC 2781, sections 4.1 and 4.2, add that in UTF-16BE "Finding 0xFF
+followed by 0xFE is an error since there is no Unicode character
+0xFFFE", and the same of FE FF in UTF-16LE. The Unicode Standard does
+not: U+FFFE is a noncharacter, which D91 encodes like any other scalar
+value. The definitions here follow the Unicode Standard, so such bytes
+read as U+FFFE.
+
 D98: "In the UTF-16 encoding scheme, an initial byte sequence
 corresponding to U+FEFF is interpreted as a byte order mark [...]. An
 initial byte sequence <FE FF> indicates big-endian order, and an initial
@@ -217,6 +238,19 @@ example : Spec.serializeBE [0x004D, 0x0430, 0x4E8C, 0xD800, 0xDF02] =
     [0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02] := by decide +kernel
 example : Spec.serializeLE [0x004D, 0x0430, 0x4E8C, 0xD800, 0xDF02] =
     [0x4D, 0x00, 0x30, 0x04, 0x8C, 0x4E, 0x00, 0xD8, 0x02, 0xDF] := by decide +kernel
+
+-- D98's three serializations of it all read as its characters.
+example : Spec.SchemeReads [0xFE, 0xFF, 0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02]
+      ['M', 'а', '二', Char.ofNat 0x10302] ∧
+    Spec.SchemeReads [0xFF, 0xFE, 0x4D, 0x00, 0x30, 0x04, 0x8C, 0x4E, 0x00, 0xD8, 0x02, 0xDF]
+      ['M', 'а', '二', Char.ofNat 0x10302] ∧
+    Spec.SchemeReads [0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02]
+      ['M', 'а', '二', Char.ofNat 0x10302] := by
+  unfold Spec.SchemeReads; decide +kernel
+-- With a mark, the mark is not text; text that starts with U+FEFF and has
+-- no mark cannot be told from text after a mark, and reads as the latter.
+example : ¬ Spec.SchemeReads [0xFE, 0xFF, 0x00, 0x41] ['﻿', 'A'] := by
+  unfold Spec.SchemeReads; decide +kernel
 
 /-! ## The WHATWG Encoding Standard, section 14.2.1, shared UTF-16 decoder
 
@@ -259,8 +293,9 @@ To get a scalar value from surrogates, given a leading surrogate
 `leading` and a trailing surrogate `trailing`, return `0x10000 +
 ((leading − 0xD800) << 10) + (trailing − 0xDC00)`. Decoding runs the
 handler on each byte of the queue and then on end-of-queue; with the
-error mode "replacement", each error gives U+FFFD (sections 4.1 and
-4.3).
+error mode "replacement", each error gives U+FFFD (section 4.1,
+"process a queue" and "process an item"; the `decode` algorithm of
+section 6 uses that mode).
 
 Below, `lead` is UTF-16 leading byte and `sur` is UTF-16 leading
 surrogate, `none` for null. Each step takes a byte from the queue or,
@@ -304,9 +339,25 @@ def Spec.whatwgRun (isBE : Bool) : Nat → Option UInt8 → Option Nat → List 
 def Spec.whatwgDecode (isBE : Bool) (bs : List UInt8) : List Char :=
   Spec.whatwgRun isBE (3 * bs.length + 2) none none bs
 
+-- Each step: a pair (6.3), a leading surrogate then a unit that is not
+-- trailing (6.4 to 6.7, the unit read again), a trailing surrogate alone
+-- (8), a plain unit (9), a byte left over (1), a leading surrogate left
+-- over (1), and both left over, which give one error between them.
+example : Spec.whatwgDecode true [0xD8, 0x3D, 0xDE, 0x00] = [Char.ofNat 0x1F600] ∧
+    Spec.whatwgDecode true [0xD8, 0x00, 0x00, 0x41] = ['�', 'A'] ∧
+    Spec.whatwgDecode true [0xD8, 0x00, 0xD8, 0x00, 0xDC, 0x00] = ['�', Char.ofNat 0x10000] ∧
+    Spec.whatwgDecode false [0x00, 0xDC, 0x41, 0x00] = ['�', 'A'] ∧
+    Spec.whatwgDecode false [0x41, 0x00] = ['A'] ∧
+    Spec.whatwgDecode false [0x41, 0x00, 0x42] = ['A', '�'] ∧
+    Spec.whatwgDecode true [0xD8, 0x00] = ['�'] ∧
+    Spec.whatwgDecode false [0x00, 0xD8, 0x41] = ['�'] ∧
+    Spec.whatwgDecode true [0xFE, 0xFF, 0x00, 0x41] = ['﻿', 'A'] := by
+  decide +kernel
+
 /-! ## ECMAScript, `String.prototype.toWellFormed`
 
-ECMAScript 2024 adds `toWellFormed`, which returns the string with each
+Set out in words here, not quoted: ECMAScript 2024 adds `toWellFormed`,
+which returns the string with each
 code unit that `CodePointAt` reports as an unpaired surrogate replaced
 by 0xFFFD, and every other code unit kept. `CodePointAt` reports the
 unit at a position as an unpaired surrogate when it is a trailing

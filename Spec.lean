@@ -306,10 +306,11 @@ theorem Spec.utf16_decodeLossyBytes_units (us : List UInt16) :
 
 /-! ## UTF-16 test vectors -/
 
-/-- The examples of D91, D96, D97 and D98 of the Unicode Standard and
-    of RFC 2781, section 5, both ways; the ends of the ranges; isolated
-    surrogates refused and replaced; and the WHATWG decoder's single
-    U+FFFD for a high surrogate cut off with an odd byte. -/
+/-- The examples of D91, D96 and D97 of the Unicode Standard and of RFC
+    2781, section 5, both ways, and D98's and RFC 2781's texts with a
+    byte order mark, read; the ends of the ranges; isolated surrogates
+    refused and replaced; and the WHATWG decoder's single U+FFFD for a
+    high surrogate cut off with an odd byte. -/
 theorem Spec.utf16_vectors :
     -- D91 and D96 to D98: <004D 0430 4E8C 10302>
     Utf16.encode ['M', 'а', '二', Char.ofNat 0x10302] =
@@ -326,7 +327,16 @@ theorem Spec.utf16_vectors :
       some ['M', 'а', '二', Char.ofNat 0x10302] ∧
     Utf16.decodeScheme [0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02] =
       some ['M', 'а', '二', Char.ofNat 0x10302] ∧
-    -- RFC 2781, section 5: U+12345 then "=Ra", four ways
+    Utf16.decodeBE [0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02] =
+      some ['M', 'а', '二', Char.ofNat 0x10302] ∧
+    Utf16.decodeLE [0x4D, 0x00, 0x30, 0x04, 0x8C, 0x4E, 0x00, 0xD8, 0x02, 0xDF] =
+      some ['M', 'а', '二', Char.ofNat 0x10302] ∧
+    -- RFC 2781, section 5: U+12345 then "=Ra", both ways, and with each mark
+    Utf16.encode [Char.ofNat 0x12345, '=', 'R', 'a'] = [0xD808, 0xDF45, 0x003D, 0x0052, 0x0061] ∧
+    Utf16.encodeBE [Char.ofNat 0x12345, '=', 'R', 'a'] =
+      [0xD8, 0x08, 0xDF, 0x45, 0x00, 0x3D, 0x00, 0x52, 0x00, 0x61] ∧
+    Utf16.encodeLE [Char.ofNat 0x12345, '=', 'R', 'a'] =
+      [0x08, 0xD8, 0x45, 0xDF, 0x3D, 0x00, 0x52, 0x00, 0x61, 0x00] ∧
     Utf16.decodeBE [0xD8, 0x08, 0xDF, 0x45, 0x00, 0x3D, 0x00, 0x52, 0x00, 0x61] =
       some [Char.ofNat 0x12345, '=', 'R', 'a'] ∧
     Utf16.decodeLE [0x08, 0xD8, 0x45, 0xDF, 0x3D, 0x00, 0x52, 0x00, 0x61, 0x00] =

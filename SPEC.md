@@ -57,7 +57,7 @@ At run time, core checks the bytes with C code (`lean_string_validate_utf8`), wh
 
 ## UTF-16
 
-The sources are RFC 2781, *UTF-16, an encoding of ISO 10646*, and the Unicode Standard, version 16.0: D72 to D75 for surrogates, D91 and Table 3-5 for the UTF-16 encoding form, D96 to D98 for the encoding schemes, and section 3.9.6 again for lossy decoding. The lossy byte decoders follow the shared UTF-16 decoder of the WHATWG Encoding Standard, section 14.2.1, and `toWellFormed` follows ECMAScript's `String.prototype.toWellFormed`. `Spec/Utf16.lean` quotes each one.
+The sources are RFC 2781, *UTF-16, an encoding of ISO 10646*, and the Unicode Standard, version 16.0: D72 to D75 for surrogates, D91 and Table 3-5 for the UTF-16 encoding form, D96 to D98 for the encoding schemes, and section 3.9.6 again for lossy decoding. The lossy byte decoders follow the shared UTF-16 decoder of the WHATWG Encoding Standard, section 14.2.1, and `toWellFormed` follows ECMAScript's `String.prototype.toWellFormed`. `Spec/Utf16.lean` quotes RFC 2781, the Unicode Standard and the WHATWG decoder, and sets out ECMAScript's rule in words.
 
 ### Code units
 
@@ -65,7 +65,7 @@ The sources are RFC 2781, *UTF-16, an encoding of ISO 10646*, and the Unicode St
 
 `Utf16.decode` returns the characters when its input is the encoding of a list of characters, and `none` otherwise. A unit list is the encoding of some characters exactly when it has no isolated surrogate. An isolated surrogate is a high surrogate with no low surrogate right after it, or a low surrogate with no high surrogate right before it. So the decoder refuses `D800` alone, `DC00` alone, `DBFF 0041`, and `DC00 D800`.
 
-`Utf16.decodeLossy` never fails. Section 3.9.6 applies to UTF-16 as to UTF-8. In UTF-16 a maximal subpart is always a single isolated surrogate; the proofs show it as a lemma about the definitions, `Utf16.Proofs.maximalSubpart_iff`. So `decodeLossy` puts one U+FFFD in place of each isolated surrogate, and reads everything else as `decode` reads it. `D800 D800 DC00` gives U+FFFD and then U+10000: the second high surrogate still pairs with the low one. JavaScript's `toWellFormed`, Rust's `String::from_utf16_lossy` and Go's `utf16.Decode` follow the same rule.
+`Utf16.decodeLossy` never fails. Section 3.9.6 applies to UTF-16 as to UTF-8. In UTF-16 a maximal subpart is always a single isolated surrogate. The proofs show this as a lemma, `Utf16.Proofs.maximalSubpart_iff`; it is a fact about the definitions alone, so it is not one of the approved statements. So `decodeLossy` puts one U+FFFD in place of each isolated surrogate, and reads everything else as `decode` reads it. `D800 D800 DC00` gives U+FFFD and then U+10000: the second high surrogate still pairs with the low one. JavaScript's `toWellFormed`, Rust's `String::from_utf16_lossy` and Go's `utf16.Decode` follow the same rule.
 
 `Utf16.toWellFormed` gives the units of `decodeLossy`'s answer. That is the list with each isolated surrogate replaced by the unit 0xFFFD and every other unit kept, as ECMAScript's `String.prototype.toWellFormed` gives.
 
@@ -76,7 +76,7 @@ The encoding schemes write each code unit as two bytes:
 - **UTF-16BE** (D96) writes the high byte first.
 - **UTF-16LE** (D97) writes the low byte first.
 
-`encodeBE` and `encodeLE` never write a byte order mark. `decodeBE` and `decodeLE` return the characters exactly when the bytes are such an encoding. So they refuse an odd number of bytes, and wherever `decode` refuses the units. In these two schemes a leading `FE FF` (big-endian) or `FF FE` (little-endian) is the character U+FEFF, not a mark.
+`encodeBE` and `encodeLE` never write a byte order mark. `decodeBE` and `decodeLE` return the characters exactly when the bytes are such an encoding. So they refuse an odd number of bytes, and wherever `decode` refuses the units. In these two schemes a leading `FE FF` (big-endian) or `FF FE` (little-endian) is the character U+FEFF, not a mark. The other order's mark, `FF FE` in UTF-16BE or `FE FF` in UTF-16LE, reads as U+FFFE, a noncharacter, as the Unicode Standard has it. RFC 2781, sections 4.1 and 4.2, would call it an error instead.
 
 `decodeScheme` reads the **UTF-16 encoding scheme** (D98, RFC 2781 section 4.3):
 
@@ -93,7 +93,7 @@ Python's `utf-16` codec, by contrast, reads text with no mark in the machine's o
 - A byte left over at the end becomes one U+FFFD.
 - A high surrogate followed by a leftover byte becomes a single U+FFFD for both, since the standard's decoder reports one error at the end of the input.
 
-Like the WHATWG decoders themselves, they read a leading mark as U+FEFF. The standard's `decode` algorithm, which `TextDecoder` uses, drops a mark before the decoder runs; that step is not part of these functions.
+Like the WHATWG decoders themselves, they read a leading mark in their own order as U+FEFF. The standard's other steps are not part of these functions. Its `decode` algorithm sniffs a mark first: a leading `EF BB BF`, `FE FF` or `FF FE` picks the encoding, whatever the label, and is skipped. `TextDecoder` does not use `decode`. Unless `ignoreBOM` is set, it drops a U+FEFF that the decoder gives at the start, so only a mark in its own order.
 
 ## The command-line tool
 
@@ -138,7 +138,7 @@ Each property is a theorem in `Spec.lean`, under the name given. The definitions
 | `decodeScheme` reads the UTF-16 encoding scheme as D98 and RFC 2781, section 4.3, say. | `Spec.utf16_decodeScheme_iff` |
 | `decodeLossyBE` and `decodeLossyLE` give exactly what the WHATWG UTF-16BE and UTF-16LE decoders give. | `Spec.utf16_whatwg` |
 | On whole units, the lossy byte decoders give the conversion of section 3.9.6. | `Spec.utf16_decodeLossyBytes_units` |
-| The examples of D91, D96 to D98 and RFC 2781, section 5, both ways; the ends of the ranges; marks; isolated surrogates refused and replaced; and a high surrogate cut off by an odd byte. | `Spec.utf16_vectors` |
+| The examples of D91, D96, D97 and RFC 2781, section 5, both ways, and D98's and RFC 2781's texts with a mark, read; the ends of the ranges; marks; isolated surrogates refused and replaced; and a high surrogate cut off by an odd byte. | `Spec.utf16_vectors` |
 
 Together, these fix every output.
 
@@ -153,4 +153,4 @@ Together, these fix every output.
 
 Python's strict `utf-8` codec, on every input, and its `replace` error handler for the lossy decoder. Lean core's `String.fromUTF8?` at run time is checked against the same answers as the strict decoder.
 
-For UTF-16, Python's `utf-16-be` and `utf-16-le` codecs, strict and with `replace`, for the unit decoders and the byte decoders. Python's `utf-16` codec reads text that starts with a byte order mark. Text with no mark goes to `utf-16-be`, since Python's `utf-16` would read it little-endian. For `toWellFormed`, the oracle is ECMAScript's `CodePointAt` rule, written out in `tests/run_tests.py`.
+For UTF-16, Python's `utf-16-be` and `utf-16-le` codecs, strict and with `replace`, for the unit decoders and the byte decoders. Python's `utf-16` codec reads text that starts with a byte order mark. Text with no mark goes to `utf-16-be`, since Python's `utf-16` would read it in the machine's byte order, little-endian on most machines. For `toWellFormed`, the oracle is ECMAScript's `CodePointAt` rule, written out in `tests/run_tests.py`.
