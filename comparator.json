@@ -2,9 +2,25 @@
   "challenge_module": "Spec",
   "solution_module": "Proofs",
   "theorem_names": [
-    "Spec.encode_eq", "Spec.decode_iff", "Spec.decode_encode", "Spec.decode_wellFormed",
-    "Spec.encode_toUTF8", "Spec.fromUTF8?_eq", "Spec.rfc3629_examples", "Spec.boundary_vectors",
-    "Spec.reject_vectors"
+    "Spec.encode_eq",
+    "Spec.decode_iff",
+    "Spec.decode_encode",
+    "Spec.decode_wellFormed",
+    "Spec.encode_toUTF8",
+    "Spec.fromUTF8?_eq",
+    "Spec.rfc3629_examples",
+    "Spec.boundary_vectors",
+    "Spec.reject_vectors",
+    "Spec.decodeLossy_iff",
+    "Spec.decodeLossy_of_decode",
+    "Spec.decodeLossy_replaces",
+    "Spec.decodeLossy_encode_append",
+    "Spec.decodeLossy_append_encode",
+    "Spec.substitution_vectors"
   ],
-  "permitted_axioms": ["propext", "Quot.sound", "Classical.choice"]
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ]
 }

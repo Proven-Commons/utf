@@ -1,6 +1,7 @@
 /-
-  The definitions the specification uses, written from RFC 3629 and
-  from Table 3-7 of the Unicode Standard (section 3.9), independently of
+  The definitions the specification uses, written from RFC 3629, from
+  Table 3-7 of the Unicode Standard (section 3.9), and from section 3.9.6
+  of the Unicode Standard, version 16.0 (D93a, D93b), independently of
   the code in `Utf8/`. Part of the approved specification, with
   `Spec.lean`.
 
@@ -11,6 +12,9 @@
   statement means the same thing on both sides. The `example`s check the
   definitions against the RFC's examples, and against the first and last
   sequence of each row of the table and the bytes just outside its edges.
+  The definitions of section 3.9.6 have two direct checks here; the
+  standard's own examples, Tables 3-8 to 3-11, are checked through
+  `Spec.substitution_vectors` together with `Spec.decodeLossy_iff`.
 -/
 
 import Utf8
@@ -137,3 +141,83 @@ example :
     ¬ Spec.WellFormedChar [0xF0, 0x8F, 0xBF, 0xBF] ∧ ¬ Spec.WellFormedChar [0xF4, 0x90, 0x80, 0x80] ∧
     ¬ Spec.WellFormedChar [0xF5, 0x80, 0x80, 0x80] := by
   simp only [Spec.WellFormedChar, Spec.InRange, UInt8.toNat]; and_intros <;> decide
+
+/-! ## The Unicode Standard, section 3.9.6, U+FFFD Substitution of Maximal Subparts
+
+```
+D93a Unconvertible offset: An offset in a code unit sequence for which
+     no code unit subsequence starting at that offset is well-formed.
+
+D93b Maximal subpart of an ill-formed subsequence: The longest code
+     unit subsequence starting at an unconvertible offset that is
+     either:
+     a. the initial subsequence of a well-formed code unit sequence, or
+     b. a subsequence of length one.
+```
+
+"Whenever an unconvertible offset is reached during conversion of a
+code unit sequence:
+1. The maximal subpart at that offset is replaced by a single U+FFFD.
+2. The conversion proceeds at the offset immediately after the maximal
+   subpart."
+
+Below, an offset is the front of the bytes that remain, and a
+subsequence starting there is a prefix of them (`<+:`).
+-/
+
+/-- `p` is the initial subsequence of a well-formed code unit sequence.
+
+    That sequence may hold more than one character. The note under D93b
+    speaks of one character: "as many code units as match the beginning
+    of a well-formed character". Where this definition is used, the two
+    readings agree. `Spec.MaximalSubpart` asks it only of bytes at an
+    unconvertible offset. By D93a, no well-formed sequence starts there,
+    not even the bytes of one whole character. So `p` stops inside the
+    bytes of the first character of the well-formed sequence. That is,
+    `p` is the start of one character. The proofs show this as
+    `Utf8.Proofs.Lossy.initial_iff`, in `Proofs/Lossy/Table.lean`. -/
+def Spec.Initial (p : List UInt8) : Prop :=
+  ∃ s, Spec.WellFormed s ∧ p <+: s
+
+/-- D93a: no subsequence starting at the front of `bs` is well formed.
+    (The empty one is left out: it starts nowhere.) -/
+def Spec.Unconvertible (bs : List UInt8) : Prop :=
+  ∀ s, s ≠ [] → s <+: bs → ¬ Spec.WellFormed s
+
+/-- D93b: `p` is the maximal subpart at the front of `p ++ rest`. The
+    front is an unconvertible offset, and `p` is the longest prefix
+    there that is either the start of a well-formed sequence or one
+    byte long. -/
+def Spec.MaximalSubpart (p rest : List UInt8) : Prop :=
+  p ≠ [] ∧ Spec.Unconvertible (p ++ rest) ∧
+  (Spec.Initial p ∨ p.length = 1) ∧
+  ∀ q, q <+: p ++ rest → (Spec.Initial q ∨ q.length = 1) → q.length ≤ p.length
+
+/-- Conversion with U+FFFD substitution of maximal subparts: converting
+    `bs` gives `out`. Where a character's well-formed sequence starts,
+    it gives the character; at an unconvertible offset, the maximal
+    subpart gives one U+FFFD; either way, conversion proceeds after the
+    bytes used. -/
+inductive Spec.Substitutes : List UInt8 → List Char → Prop where
+  | nil : Spec.Substitutes [] []
+  | char {c : Char} {rest : List UInt8} {out : List Char} :
+      Spec.Substitutes rest out → Spec.Substitutes (Spec.encodeChar c ++ rest) (c :: out)
+  | replace {p rest : List UInt8} {out : List Char} :
+      Spec.MaximalSubpart p rest → Spec.Substitutes rest out →
+      Spec.Substitutes (p ++ rest) ('�' :: out)
+
+-- A well-formed sequence starts at the front of `E2 82 AC` (U+20AC), so
+-- that offset is not unconvertible.
+example : ¬ Spec.Unconvertible [0xE2, 0x82, 0xAC] := by
+  intro h
+  apply h [0xE2, 0x82, 0xAC] (by simp) (List.prefix_refl _)
+  have : Spec.WellFormedChar [0xE2, 0x82, 0xAC] := by
+    simp only [Spec.WellFormedChar, Spec.InRange, UInt8.toNat]; decide
+  simpa using Spec.WellFormed.cons this Spec.WellFormed.nil
+
+-- `F0 9F 98` is the start of a well-formed sequence, `F0 9F 98 80`.
+example : Spec.Initial [0xF0, 0x9F, 0x98] := by
+  refine ⟨[0xF0, 0x9F, 0x98, 0x80], ?_, ⟨[0x80], rfl⟩⟩
+  have : Spec.WellFormedChar [0xF0, 0x9F, 0x98, 0x80] := by
+    simp only [Spec.WellFormedChar, Spec.InRange, UInt8.toNat]; decide
+  simpa using Spec.WellFormed.cons this Spec.WellFormed.nil

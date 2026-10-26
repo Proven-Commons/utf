@@ -7,9 +7,9 @@
   the statement written here. The `sorry`s below are expected in this
   file only.
 
-  The definitions the statements use, written from RFC 3629 and Table
-  3-7 of the Unicode Standard, are in `Spec/Defs.lean`, which is part of
-  the specification too.
+  The definitions the statements use, written from RFC 3629, Table 3-7
+  of the Unicode Standard and section 3.9.6 of the Unicode Standard, are
+  in `Spec/Defs.lean`, which is part of the specification too.
 -/
 
 import Utf8
@@ -128,3 +128,51 @@ theorem Spec.reject_vectors :
     Utf8.decode [0xE2, 0x89] = none ∧
     Utf8.decode [0xF0, 0x9F, 0x98] = none ∧
     Utf8.decode [0xC2, 0x41] = none := sorry
+
+/-! ## Lossy decoding -/
+
+/-- `decodeLossy` gives exactly the conversion that section 3.9.6 of
+    the Unicode Standard sets out: each well-formed sequence becomes its
+    character, and each maximal subpart of an ill-formed sequence
+    becomes one U+FFFD. -/
+theorem Spec.decodeLossy_iff (bs : List UInt8) (out : List Char) :
+    Utf8.decodeLossy bs = out ↔ Spec.Substitutes bs out := sorry
+
+/-- On well-formed bytes, the lossy decoder reads what the strict one
+    reads. -/
+theorem Spec.decodeLossy_of_decode (bs : List UInt8) (cs : List Char) :
+    Utf8.decode bs = some cs → Utf8.decodeLossy bs = cs := sorry
+
+/-- On bytes that are not well formed, the lossy decoder puts in at
+    least one U+FFFD. -/
+theorem Spec.decodeLossy_replaces (bs : List UInt8) :
+    Utf8.decode bs = none → '�' ∈ Utf8.decodeLossy bs := sorry
+
+/-- Well-formed text before bad bytes comes through unchanged. -/
+theorem Spec.decodeLossy_encode_append (cs : List Char) (bs : List UInt8) :
+    Utf8.decodeLossy (Utf8.encode cs ++ bs) = cs ++ Utf8.decodeLossy bs := sorry
+
+/-- Well-formed text after bad bytes comes through unchanged: no
+    replacement swallows any of it. -/
+theorem Spec.decodeLossy_append_encode (bs : List UInt8) (cs : List Char) :
+    Utf8.decodeLossy (bs ++ Utf8.encode cs) = Utf8.decodeLossy bs ++ cs := sorry
+
+/-- The examples of section 3.9.6 of the Unicode Standard, Tables 3-8
+    to 3-11, and two cases where replacing too many bytes would swallow
+    the next character. -/
+theorem Spec.substitution_vectors :
+    -- Table 3-8, non-shortest forms
+    Utf8.decodeLossy [0xC0, 0xAF, 0xE0, 0x80, 0xBF, 0xF0, 0x81, 0x82, 0x41] =
+      ['�', '�', '�', '�', '�', '�', '�', '�', 'A'] ∧
+    -- Table 3-9, surrogates
+    Utf8.decodeLossy [0xED, 0xA0, 0x80, 0xED, 0xBF, 0xBF, 0xED, 0xAF, 0x41] =
+      ['�', '�', '�', '�', '�', '�', '�', '�', 'A'] ∧
+    -- Table 3-10, other ill-formed sequences
+    Utf8.decodeLossy [0xF4, 0x91, 0x92, 0x93, 0xFF, 0x41, 0x80, 0xBF, 0x42] =
+      ['�', '�', '�', '�', '�', 'A', '�', '�', 'B'] ∧
+    -- Table 3-11, truncated sequences
+    Utf8.decodeLossy [0xE1, 0x80, 0xE2, 0xF0, 0x91, 0x92, 0xF1, 0xBF, 0x41] =
+      ['�', '�', '�', '�', 'A'] ∧
+    -- A cut-short sequence, then `<` and `A`
+    Utf8.decodeLossy [0xF0, 0x9F, 0x98, 0x3C] = ['�', '<'] ∧
+    Utf8.decodeLossy [0xE2, 0x41, 0x42] = ['�', 'A', 'B'] := sorry

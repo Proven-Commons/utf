@@ -2,12 +2,14 @@
 """Differential tests: the Lean UTF-8 codec against Python's, with Lean
 core's compiled check alongside.
 
-The oracle is Python's strict UTF-8 codec: `bytes.decode("utf-8")`,
-which raises on any byte string that is not well formed, and
+The oracle is Python's UTF-8 codec: `bytes.decode("utf-8")`, which
+raises on any byte string that is not well formed, and
 `str.encode("utf-8")`. For every byte string the Lean decoder must give
 Python's answer. Lean core's `String.fromUTF8?`, which at run time is
 C code that no proof covers, must give the same answer too: the tool
-answers `core` requests with it.
+answers `core` requests with it. And the lossy decoder must give what
+`bytes.decode("utf-8", "replace")` gives, which puts U+FFFD in place of
+each maximal subpart of an ill-formed sequence.
 
 Inputs come from a recorded seed, after fixed sets:
 
@@ -59,6 +61,10 @@ def oracle_decode(data):
     except UnicodeDecodeError:
         return "REJECT"
     return "OK:" + ",".join(f"{ord(ch):x}" for ch in text)
+
+
+def oracle_lossy(data):
+    return "OK:" + ",".join(f"{ord(ch):x}" for ch in data.decode("utf-8", "replace"))
 
 
 def oracle_encode(points):
@@ -202,6 +208,8 @@ MALFORMED = [
     ("decode 4A", "hex digits are lower case"),
     ("decode 41 41", "two arguments"),
     ("core", "no argument"),
+    ("lossy", "no argument"),
+    ("lossy c", "an odd number of hex digits"),
     ("encode", "no argument"),
     ("encode 41,", "an empty code point"),
     ("encode 123456789", "a code point of more than 8 digits"),
@@ -211,13 +219,17 @@ MALFORMED = [
     (" decode 41", "a leading space"),
 ]
 
-AT_EOF = [("decode 41", "OK:41"), ("encode 41", "41"), ("decode 41\r\n", "OK:41")]
+AT_EOF = [("decode 41", "OK:41"), ("encode 41", "41"), ("decode 41\r\n", "OK:41"),
+          ("lossy c0", "OK:fffd")]
 
 
 def decode_pair(label, data, mutated=False):
+    """Requests for one byte string: the decoder, Lean core's check, and
+    the lossy decoder."""
     want = oracle_decode(data)
     return [(label, f"decode {data.hex()}", want, mutated),
-            (label + " (core)", f"core {data.hex()}", want, False)]
+            (label + " (core)", f"core {data.hex()}", want, False),
+            (label + " (lossy)", f"lossy {data.hex()}", oracle_lossy(data), False)]
 
 
 def cases(seed, count):
@@ -304,7 +316,8 @@ def run_tool(data, timeout=TIMEOUT):
 
 
 def oracle():
-    return f"Python {platform.python_version()} strict `utf-8` codec"
+    return (f"Python {platform.python_version()} `utf-8` codec, strict and with the "
+            "`replace` error handler")
 
 
 def lean_version():
@@ -370,10 +383,22 @@ def main():
     decodes = [want for label, req, want, _ in items if req.startswith("decode ")
                and label != "error"]
     accepted = sum(1 for w in decodes if w.startswith("OK"))
-    core_items = [(item, got) for item, got in zip(items, out) if item[1].startswith("core ")]
+    core_items = [(item, got) for item, got in zip(items, out)
+                  if item[1].startswith("core ") and item[0] != "error"]
     core_agree = sum(1 for item, got in core_items if got == item[2])
+    lossy_items = [(item, got) for item, got in zip(items, out)
+                   if item[1].startswith("lossy ") and item[0] != "error"]
+    lossy_agree = sum(1 for item, got in lossy_items if got == item[2])
+    # A U+FFFD in place of bad bytes comes only where the input is not
+    # well formed. A U+FFFD can also be in well-formed input, as EF BF BD.
+    lossy_replaced = sum(1 for item, _ in lossy_items
+                         if oracle_decode(bytes.fromhex(item[1].split(" ", 1)[1])) == "REJECT")
+    lossy_fffd = sum(1 for item, _ in lossy_items if "fffd" in item[2].split(":", 1)[1].split(","))
     mutated = sum(1 for item in items if item[3])
-    inputs = sum(1 for item in items if not item[1].startswith("core "))
+    # Each byte string counts once, though it is also sent as `core` and
+    # `lossy`.
+    inputs = sum(1 for item in items
+                 if item[0] == "error" or not item[1].startswith(("core ", "lossy ")))
     malformed = [got for item, got in zip(items, out) if item[0] == "error"]
 
     lines = [
@@ -385,13 +410,19 @@ def main():
         f"- Lean: {lean_version()}",
         f"- Seed: {args.seed}",
         f"- Inputs: {inputs}",
-        f"- Requests: {len(items)}, each decoded byte string also sent as `core`",
+        f"- Requests: {len(items)}, each decoded byte string also sent as `core` and as `lossy`",
         f"- Mutated: {mutated} of the inputs are mutated encodings",
         "- By kind: " + ", ".join(f"{k} {v}" for k, v in sorted(by_label.items())),
         f"- Byte strings decoded: {len(decodes)}, of which {accepted} well formed and "
         f"{len(decodes) - accepted} refused",
         f"- The same byte strings given to Lean core's `String.fromUTF8?`, agreeing with "
         f"Python: {core_agree} of {len(core_items)}",
+        f"- The same byte strings given to the lossy decoder, agreeing with Python's "
+        f"`replace` handler: {lossy_agree} of {len(lossy_items)}",
+        f"- Lossy answers with a U+FFFD in place of bad bytes: {lossy_replaced}, one for each "
+        "byte string that is not well formed",
+        f"- Lossy answers with a U+FFFD anywhere: {lossy_fffd}, also counting well-formed input "
+        "that holds a U+FFFD of its own, `EF BF BD`",
         f"- Malformed requests answered `error`: {malformed.count('error')} of "
         f"{by_label.get('error', 0)}",
         f"- Requests ending in CR LF: every seventh, {len(items) // 7}",
