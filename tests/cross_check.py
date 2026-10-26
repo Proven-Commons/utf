@@ -14,8 +14,13 @@ same code points.
 
 Then each byte string goes to the lossy decoder, and to the lossy
 decoding of the other three: Rust's `String::from_utf8_lossy`, Node's
-`TextDecoder` without `fatal`, and a Go `range` loop. The counts go to
-tests/CROSS-CHECK.md.
+`TextDecoder` without `fatal`, and a Go `range` loop.
+
+For UTF-16, the lists of code units the tests decode go to Rust's
+`String::from_utf16` and `from_utf16_lossy`, to Node's `isWellFormed`
+and `toWellFormed`, and to Go's `unicode/utf16.Decode`; the byte strings
+go to Node's `TextDecoder` for UTF-16BE and UTF-16LE, fatal and not,
+with `ignoreBOM` set. The counts go to tests/CROSS-CHECK.md.
 """
 
 import argparse
@@ -59,6 +64,72 @@ def tools(mode=""):
         f"Rust `String::from_utf8` ({rust})": [str(BUILD / "rust-utf8")],
         f"Node `TextDecoder`, fatal, `ignoreBOM` set ({node})": ["node", str(HELPERS / "main.js")],
     }
+
+
+def utf16_tools():
+    BUILD.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["go", "build", "-o", str(BUILD / "go-utf16"), "main.go"], cwd=HELPERS / "go16",
+                   check=True, env={**__import__("os").environ, "GO111MODULE": "off"})
+    subprocess.run(["rustc", "-O", "-o", str(BUILD / "rust-utf16"), "utf16.rs"], cwd=HELPERS,
+                   check=True)
+    return (version(["go", "version"]), version(["rustc", "--version"]),
+            version(["node", "--version"]))
+
+
+def ask(req, hexes):
+    out, problem = run_tests.run_tool("".join(f"{req} {h}\n" for h in hexes))
+    if problem or len(out) != len(hexes):
+        sys.exit(f"the tool failed: {problem}")
+    return out
+
+
+def utf16_section(args):
+    items = list(run_tests.cases(args.seed, args.count))
+    units = [req.split(" ", 1)[1] for label, req, _, _ in items
+             if req.startswith("dec16 ") and label != "error"]
+    byte_hexes = [req.split(" ", 1)[1] for label, req, _, _ in items
+                  if req.startswith("decbe ") and label != "error"]
+    go, rust, node = utf16_tools()
+    js = str(HELPERS / "utf16.js")
+    unit_data = "".join(h + "\n" for h in units)
+    byte_data = "".join(h + "\n" for h in byte_hexes)
+    strict = ask("dec16", units)
+    lines = [
+        "",
+        "## UTF-16",
+        "",
+        f"- Lists of code units: {len(units)}, of which {sum(o.startswith('OK') for o in strict)} "
+        "this project accepts",
+        f"- Byte strings: {len(byte_hexes)}",
+        "",
+        "| Operation | Other decoder | Differences from this project |",
+        "| --- | --- | --- |",
+    ]
+    examples = []
+    for op, req, data, hexes, commands in [
+        ("Units, strict", "dec16", unit_data, units, {
+            f"Rust `String::from_utf16` ({rust})": [str(BUILD / "rust-utf16")],
+            f"Node `isWellFormed` ({node})": ["node", js, "units"]}),
+        ("Units, lossy", "lossy16", unit_data, units, {
+            f"Rust `String::from_utf16_lossy` ({rust})": [str(BUILD / "rust-utf16"), "lossy"],
+            f"Node `toWellFormed` ({node})": ["node", js, "units-lossy"],
+            f"Go `utf16.Decode` ({go})": [str(BUILD / "go-utf16")]}),
+        ("`toWellFormed`, as units", "wf16", unit_data, units, {
+            f"Node `toWellFormed` ({node})": ["node", js, "wf"]}),
+        ("UTF-16BE, strict", "decbe", byte_data, byte_hexes, {
+            f"Node `TextDecoder`, fatal, `ignoreBOM` set ({node})": ["node", js, "be"]}),
+        ("UTF-16LE, strict", "decle", byte_data, byte_hexes, {
+            f"Node `TextDecoder`, fatal, `ignoreBOM` set ({node})": ["node", js, "le"]}),
+        ("UTF-16BE, lossy", "lossybe", byte_data, byte_hexes, {
+            f"Node `TextDecoder`, not fatal, `ignoreBOM` set ({node})": ["node", js, "be-lossy"]}),
+        ("UTF-16LE, lossy", "lossyle", byte_data, byte_hexes, {
+            f"Node `TextDecoder`, not fatal, `ignoreBOM` set ({node})": ["node", js, "le-lossy"]}),
+    ]:
+        ours = strict if req == "dec16" else ask(req, hexes)
+        rows = []
+        examples += compare(commands, hexes, ours, data, rows)
+        lines += [f"| {op} |{row[1:]}" for row in rows]
+    return lines + [""] + examples
 
 
 def compare(commands, hexes, ours, data, lines):
@@ -122,6 +193,7 @@ def main():
               "says that on an invalid UTF-8 sequence it gives U+FFFD and \"will advance a "
               "single byte\". So it gives one U+FFFD for each bad byte, and differs wherever a "
               "maximal subpart is longer than one byte.", ""] + examples
+    lines += utf16_section(args)
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"{len(hexes)} byte strings; report in {REPORT}")
 

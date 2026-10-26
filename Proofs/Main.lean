@@ -11,6 +11,10 @@ import Proofs.Decode
 import Proofs.Table
 import Proofs.Core
 import Proofs.Lossy.Main
+import Proofs.Utf16.Units
+import Proofs.Utf16.Lossy
+import Proofs.Utf16.Bytes
+import Proofs.Utf16.Whatwg
 
 theorem Spec.encode_eq (cs : List Char) : Utf8.encode cs = Spec.encode cs :=
   Utf8.Proofs.Encode.encode_eq cs
@@ -137,3 +141,148 @@ theorem Spec.substitution_vectors :
     Utf8.decodeLossy [0xF0, 0x9F, 0x98, 0x3C] = ['�', '<'] ∧
     Utf8.decodeLossy [0xE2, 0x41, 0x42] = ['�', 'A', 'B'] := by
   decide
+
+theorem Spec.utf16_encode_eq (cs : List Char) : Utf16.encode cs = Spec.encode16 cs :=
+  Utf16.Proofs.encode_eq cs
+
+theorem Spec.utf16_decode_iff (us : List UInt16) (cs : List Char) :
+    Utf16.decode us = some cs ↔ us = Spec.encode16 cs := by
+  rw [Utf16.Proofs.decode_iff, Utf16.Proofs.encode_eq]
+
+theorem Spec.utf16_decode_encode (cs : List Char) :
+    Utf16.decode (Utf16.encode cs) = some cs :=
+  Utf16.Proofs.decode_encode cs
+
+theorem Spec.utf16_decode_wellFormed (us : List UInt16) :
+    (Utf16.decode us).isSome ↔ Spec.WellFormed16 us := by
+  rw [Utf16.Proofs.wellFormed_iff, Option.isSome_iff_exists]
+  simp only [Utf16.Proofs.decode_iff]
+
+theorem Spec.utf16_decode_none_iff (us : List UInt16) :
+    Utf16.decode us = none ↔ ∃ l w r, us = l ++ w :: r ∧ Spec.Unpaired l w r :=
+  Utf16.Proofs.decode_none_iff us
+
+theorem Spec.utf16_encode_length (cs : List Char) :
+    (Utf16.encode cs).length = cs.length + (cs.filter fun c => 0x10000 ≤ c.toNat).length :=
+  Utf16.Proofs.encode_length cs
+
+theorem Spec.utf16_decodeLossy_iff (us : List UInt16) (out : List Char) :
+    Utf16.decodeLossy us = out ↔ Spec.Substitutes16 us out :=
+  Utf16.Proofs.decodeLossy_iff us out
+
+theorem Spec.utf16_decodeLossy_unpaired (w : UInt16) (rest : List UInt16) :
+    Spec.Unpaired [] w rest → Utf16.decodeLossy (w :: rest) = '�' :: Utf16.decodeLossy rest :=
+  Utf16.Proofs.decodeLossy_unpaired w rest
+
+theorem Spec.utf16_decodeLossy_of_decode (us : List UInt16) (cs : List Char) :
+    Utf16.decode us = some cs → Utf16.decodeLossy us = cs :=
+  Utf16.Proofs.decodeLossy_of_decode us cs
+
+theorem Spec.utf16_decodeLossy_replaces (us : List UInt16) :
+    Utf16.decode us = none → '�' ∈ Utf16.decodeLossy us :=
+  Utf16.Proofs.decodeLossy_replaces us
+
+theorem Spec.utf16_decodeLossy_encode_append (cs : List Char) (us : List UInt16) :
+    Utf16.decodeLossy (Utf16.encode cs ++ us) = cs ++ Utf16.decodeLossy us :=
+  Utf16.Proofs.decodeLossy_encode_append cs us
+
+theorem Spec.utf16_decodeLossy_append_encode (us : List UInt16) (cs : List Char) :
+    Utf16.decodeLossy (us ++ Utf16.encode cs) = Utf16.decodeLossy us ++ cs :=
+  Utf16.Proofs.decodeLossy_append_encode us cs
+
+theorem Spec.utf16_toWellFormed (us : List UInt16) :
+    (Utf16.toWellFormed us).length = us.length ∧
+    ∀ (i : Nat) (h : i < us.length),
+      (Spec.Unpaired (us.take i) us[i] (us.drop (i + 1)) →
+        (Utf16.toWellFormed us)[i]? = some 0xFFFD) ∧
+      (¬ Spec.Unpaired (us.take i) us[i] (us.drop (i + 1)) →
+        (Utf16.toWellFormed us)[i]? = some us[i]) :=
+  Utf16.Proofs.toWellFormed_spec us
+
+theorem Spec.utf16_encodeBytes (cs : List Char) :
+    Utf16.encodeBE cs = Spec.serializeBE (Spec.encode16 cs) ∧
+    Utf16.encodeLE cs = Spec.serializeLE (Spec.encode16 cs) :=
+  Utf16.Proofs.encodeBytes cs
+
+theorem Spec.utf16be_decode_iff (bs : List UInt8) (cs : List Char) :
+    Utf16.decodeBE bs = some cs ↔ bs = Spec.serializeBE (Spec.encode16 cs) :=
+  Utf16.Proofs.decodeBE_iff bs cs
+
+theorem Spec.utf16le_decode_iff (bs : List UInt8) (cs : List Char) :
+    Utf16.decodeLE bs = some cs ↔ bs = Spec.serializeLE (Spec.encode16 cs) :=
+  Utf16.Proofs.decodeLE_iff bs cs
+
+theorem Spec.utf16_decodeScheme_iff (bs : List UInt8) (cs : List Char) :
+    Utf16.decodeScheme bs = some cs ↔ Spec.SchemeReads bs cs :=
+  Utf16.Proofs.decodeScheme_iff bs cs
+
+theorem Spec.utf16_whatwg (bs : List UInt8) :
+    Utf16.decodeLossyBE bs = Spec.whatwgDecode true bs ∧
+    Utf16.decodeLossyLE bs = Spec.whatwgDecode false bs :=
+  Utf16.Proofs.whatwg bs
+
+theorem Spec.utf16_decodeLossyBytes_units (us : List UInt16) :
+    Utf16.decodeLossyBE (Spec.serializeBE us) = Utf16.decodeLossy us ∧
+    Utf16.decodeLossyLE (Spec.serializeLE us) = Utf16.decodeLossy us :=
+  Utf16.Proofs.decodeLossyBytes_units us
+
+theorem Spec.utf16_vectors :
+    -- D91 and D96 to D98: <004D 0430 4E8C 10302>
+    Utf16.encode ['M', '\u0430', '二', Char.ofNat 0x10302] =
+      [0x004D, 0x0430, 0x4E8C, 0xD800, 0xDF02] ∧
+    Utf16.decode [0x004D, 0x0430, 0x4E8C, 0xD800, 0xDF02] =
+      some ['M', '\u0430', '二', Char.ofNat 0x10302] ∧
+    Utf16.encodeBE ['M', '\u0430', '二', Char.ofNat 0x10302] =
+      [0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02] ∧
+    Utf16.encodeLE ['M', '\u0430', '二', Char.ofNat 0x10302] =
+      [0x4D, 0x00, 0x30, 0x04, 0x8C, 0x4E, 0x00, 0xD8, 0x02, 0xDF] ∧
+    Utf16.decodeScheme [0xFE, 0xFF, 0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02] =
+      some ['M', '\u0430', '二', Char.ofNat 0x10302] ∧
+    Utf16.decodeScheme [0xFF, 0xFE, 0x4D, 0x00, 0x30, 0x04, 0x8C, 0x4E, 0x00, 0xD8, 0x02, 0xDF] =
+      some ['M', '\u0430', '二', Char.ofNat 0x10302] ∧
+    Utf16.decodeScheme [0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02] =
+      some ['M', '\u0430', '二', Char.ofNat 0x10302] ∧
+    Utf16.decodeBE [0x00, 0x4D, 0x04, 0x30, 0x4E, 0x8C, 0xD8, 0x00, 0xDF, 0x02] =
+      some ['M', '\u0430', '二', Char.ofNat 0x10302] ∧
+    Utf16.decodeLE [0x4D, 0x00, 0x30, 0x04, 0x8C, 0x4E, 0x00, 0xD8, 0x02, 0xDF] =
+      some ['M', '\u0430', '二', Char.ofNat 0x10302] ∧
+    -- RFC 2781, section 5: U+12345 then "=Ra", both ways, and with each mark
+    Utf16.encode [Char.ofNat 0x12345, '=', 'R', 'a'] = [0xD808, 0xDF45, 0x003D, 0x0052, 0x0061] ∧
+    Utf16.encodeBE [Char.ofNat 0x12345, '=', 'R', 'a'] =
+      [0xD8, 0x08, 0xDF, 0x45, 0x00, 0x3D, 0x00, 0x52, 0x00, 0x61] ∧
+    Utf16.encodeLE [Char.ofNat 0x12345, '=', 'R', 'a'] =
+      [0x08, 0xD8, 0x45, 0xDF, 0x3D, 0x00, 0x52, 0x00, 0x61, 0x00] ∧
+    Utf16.decodeBE [0xD8, 0x08, 0xDF, 0x45, 0x00, 0x3D, 0x00, 0x52, 0x00, 0x61] =
+      some [Char.ofNat 0x12345, '=', 'R', 'a'] ∧
+    Utf16.decodeLE [0x08, 0xD8, 0x45, 0xDF, 0x3D, 0x00, 0x52, 0x00, 0x61, 0x00] =
+      some [Char.ofNat 0x12345, '=', 'R', 'a'] ∧
+    Utf16.decodeScheme [0xFE, 0xFF, 0xD8, 0x08, 0xDF, 0x45, 0x00, 0x3D, 0x00, 0x52, 0x00, 0x61] =
+      some [Char.ofNat 0x12345, '=', 'R', 'a'] ∧
+    Utf16.decodeScheme [0xFF, 0xFE, 0x08, 0xD8, 0x45, 0xDF, 0x3D, 0x00, 0x52, 0x00, 0x61, 0x00] =
+      some [Char.ofNat 0x12345, '=', 'R', 'a'] ∧
+    -- The ends of the ranges
+    Utf16.encode [Char.ofNat 0xD7FF, Char.ofNat 0xE000, Char.ofNat 0xFFFF,
+        Char.ofNat 0x10000, Char.ofNat 0x10FFFF] =
+      [0xD7FF, 0xE000, 0xFFFF, 0xD800, 0xDC00, 0xDBFF, 0xDFFF] ∧
+    -- A mark in UTF-16BE and UTF-16LE is U+FEFF; in the scheme it is not text
+    Utf16.decodeBE [0xFE, 0xFF, 0x00, 0x41] = some ['\uFEFF', 'A'] ∧
+    Utf16.decodeLE [0xFF, 0xFE, 0x41, 0x00] = some ['\uFEFF', 'A'] ∧
+    Utf16.decodeScheme [0xFE, 0xFF, 0x00, 0x41] = some ['A'] ∧
+    Utf16.decodeScheme [0x00, 0x41] = some ['A'] ∧
+    -- Isolated surrogates, refused
+    Utf16.decode [0xD800] = none ∧
+    Utf16.decode [0xDC00] = none ∧
+    Utf16.decode [0xDBFF, 0x0041] = none ∧
+    Utf16.decode [0xDC00, 0xD800] = none ∧
+    Utf16.decodeBE [0x00, 0x41, 0x00] = none ∧
+    -- and replaced
+    Utf16.decodeLossy [0xD800, 0x0041] = ['�', 'A'] ∧
+    Utf16.decodeLossy [0xDC00, 0xD800, 0xDC00] = ['�', Char.ofNat 0x10000] ∧
+    Utf16.decodeLossy [0xD800, 0xD800, 0xDC00] = ['�', Char.ofNat 0x10000] ∧
+    Utf16.decodeLossy [0x0041, 0xDBFF] = ['A', '�'] ∧
+    Utf16.toWellFormed [0xDC00, 0xD800, 0xDC00, 0xD800] = [0xFFFD, 0xD800, 0xDC00, 0xFFFD] ∧
+    -- The WHATWG decoders: an odd byte at the end, alone or after a high surrogate
+    Utf16.decodeLossyLE [0x41, 0x00, 0x42] = ['A', '�'] ∧
+    Utf16.decodeLossyLE [0x00, 0xD8, 0x41] = ['�'] ∧
+    Utf16.decodeLossyBE [0xD8, 0x00, 0x00, 0x41] = ['�', 'A'] := by
+  and_intros <;> decide +kernel
