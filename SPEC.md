@@ -44,7 +44,7 @@ A byte order mark (`EF BB BF`) is read as the character U+FEFF, like any other c
 
 So `F0 9F 98 41` gives U+FFFD and `A`: the first three bytes could start a four-byte sequence, and `41` cannot continue it. `C0 AF` gives two U+FFFD, since `C0` never starts a well-formed sequence. A maximal subpart only goes on through continuation bytes (0x80 to 0xBF), which never start a character, so it never takes in the first byte of the text after it.
 
-The Unicode Standard describes this practice but does not require it for conformance. The WHATWG Encoding Standard requires it of browsers, and Python's `errors="replace"`, Rust's `String::from_utf8_lossy` and Node's `TextDecoder` follow it. Other policies exist: a Go `range` loop over a string puts one U+FFFD in place of each bad byte.
+The Unicode Standard describes this practice but does not require it for conformance. The WHATWG Encoding Standard requires it of browsers, and Python's `errors="replace"`, Rust's `String::from_utf8_lossy` and Node's `TextDecoder` follow it. With Node's default, `ignoreBOM` not set, `TextDecoder` drops a byte order mark at the start, where `decodeLossy` reads it as U+FEFF. Other policies exist: a Go `range` loop over a string puts one U+FFFD in place of each bad byte.
 
 ## Lean core
 
