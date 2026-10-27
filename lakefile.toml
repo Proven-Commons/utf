@@ -1,5 +1,6 @@
 name = "utf8"
 version = "0.1.0"
+license = "Apache-2.0"
 defaultTargets = ["Utf8", "Utf16", "Spec", "Proofs", "utf8"]
 
 [[lean_lib]]
