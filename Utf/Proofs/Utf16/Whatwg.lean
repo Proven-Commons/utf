@@ -4,7 +4,7 @@
 -/
 
 import Utf16
-import Spec.Utf16
+import Utf.Spec.Utf16
 
 namespace Utf16.Proofs
 
@@ -128,8 +128,8 @@ theorem wh_bytes (be : Bool) (a b : UInt8) :
   · simp only [wh_u, unit, ite_true, List.cons.injEq, and_true]
     constructor <;> apply UInt8.toNat_inj.mp <;> simp <;> omega
 
-theorem wh_run_nil (be : Bool) (fuel : Nat) : Spec.whatwgRun be fuel none none [] = [] := by
-  cases fuel <;> simp [Spec.whatwgRun]
+theorem wh_run_nil (be : Bool) (fuel : Nat) : Utf.Spec.whatwgRun be fuel none none [] = [] := by
+  cases fuel <;> simp [Utf.Spec.whatwgRun]
 
 theorem wh_high_iff (u : UInt16) : isHigh u = true ↔ 0xD800 ≤ u.toNat ∧ u.toNat ≤ 0xDBFF := by
   simp [isHigh]
@@ -145,14 +145,14 @@ theorem wh_pair (h l : UInt16) :
 
 theorem wh_run (be : Bool) : ∀ fuel : Nat,
     (∀ q, 2 * q.length + 1 ≤ fuel →
-      Spec.whatwgRun be fuel none none q = decodeLossyBytes be q) ∧
+      Utf.Spec.whatwgRun be fuel none none q = decodeLossyBytes be q) ∧
     (∀ a q, 2 * q.length + 2 ≤ fuel →
-      Spec.whatwgRun be fuel (some a) none q = decodeLossyBytes be (a :: q)) ∧
+      Utf.Spec.whatwgRun be fuel (some a) none q = decodeLossyBytes be (a :: q)) ∧
     (∀ x y q, isHigh (wh_u be x y) = true → 2 * q.length + 3 ≤ fuel →
-      Spec.whatwgRun be fuel none (some (wh_u be x y).toNat) q =
+      Utf.Spec.whatwgRun be fuel none (some (wh_u be x y).toNat) q =
         decodeLossyBytes be (x :: y :: q)) ∧
     (∀ x y a q, isHigh (wh_u be x y) = true → 2 * q.length + 4 ≤ fuel →
-      Spec.whatwgRun be fuel (some a) (some (wh_u be x y).toNat) q =
+      Utf.Spec.whatwgRun be fuel (some a) (some (wh_u be x y).toNat) q =
         decodeLossyBytes be (x :: y :: a :: q)) := by
   intro fuel
   induction fuel with
@@ -164,14 +164,14 @@ theorem wh_run (be : Bool) : ∀ fuel : Nat,
       cases q with
       | nil => exact wh_run_nil be _
       | cons b q =>
-        simp only [Spec.whatwgRun]
+        simp only [Utf.Spec.whatwgRun]
         exact ih2 b q (by simp at hq; omega)
     · intro a q hq
       cases q with
-      | nil => simp [Spec.whatwgRun, wh_run_nil, wh_dlb_one, wh_repl]
+      | nil => simp [Utf.Spec.whatwgRun, wh_run_nil, wh_dlb_one, wh_repl]
       | cons b q =>
         simp only [List.length_cons] at hq
-        simp only [Spec.whatwgRun, wh_u_toNat]
+        simp only [Utf.Spec.whatwgRun, wh_u_toNat]
         cases hh : isHigh (wh_u be a b)
         · have hh' : ¬ (0xD800 ≤ (wh_u be a b).toNat ∧ (wh_u be a b).toNat ≤ 0xDBFF) := by
             rw [← wh_high_iff, hh]; simp
@@ -187,17 +187,17 @@ theorem wh_run (be : Bool) : ∀ fuel : Nat,
           exact ih3 a b q hh (by omega)
     · intro x y q hh hq
       cases q with
-      | nil => simp [Spec.whatwgRun, wh_run_nil, wh_dlb_high_two be x y hh, wh_repl]
+      | nil => simp [Utf.Spec.whatwgRun, wh_run_nil, wh_dlb_high_two be x y hh, wh_repl]
       | cons b q =>
         simp only [List.length_cons] at hq
-        simp only [Spec.whatwgRun]
+        simp only [Utf.Spec.whatwgRun]
         exact ih4 x y b q hh (by omega)
     · intro x y a q hh hq
       cases q with
-      | nil => simp [Spec.whatwgRun, wh_run_nil, wh_dlb_high_three be x y a hh, wh_repl]
+      | nil => simp [Utf.Spec.whatwgRun, wh_run_nil, wh_dlb_high_three be x y a hh, wh_repl]
       | cons b q =>
         simp only [List.length_cons] at hq
-        simp only [Spec.whatwgRun, wh_u_toNat, wh_bytes]
+        simp only [Utf.Spec.whatwgRun, wh_u_toNat, wh_bytes]
         cases hl : isLow (wh_u be a b)
         · have hl' : ¬ (0xDC00 ≤ (wh_u be a b).toNat ∧ (wh_u be a b).toNat ≤ 0xDFFF) := by
             rw [← wh_low_iff, hl]; simp
@@ -208,8 +208,8 @@ theorem wh_run (be : Bool) : ∀ fuel : Nat,
             ih1 q (by omega), wh_pair]
 
 theorem whatwg (bs : List UInt8) :
-    Utf16.decodeLossyBE bs = Spec.whatwgDecode true bs ∧
-    Utf16.decodeLossyLE bs = Spec.whatwgDecode false bs := by
+    Utf16.decodeLossyBE bs = Utf.Spec.whatwgDecode true bs ∧
+    Utf16.decodeLossyLE bs = Utf.Spec.whatwgDecode false bs := by
   constructor
   · exact ((wh_run true _).1 bs (by omega)).symm
   · exact ((wh_run false _).1 bs (by omega)).symm

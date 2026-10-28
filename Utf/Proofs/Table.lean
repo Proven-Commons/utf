@@ -7,7 +7,7 @@
 -/
 
 import Utf8
-import Spec.Defs
+import Utf.Spec.Defs
 
 namespace Utf8.Proofs.Table
 
@@ -36,29 +36,29 @@ theorem eq_toUInt8 (b : UInt8) (m : Nat) (h : b.toNat = m % 256) : b = m.toUInt8
 /-! ## One character -/
 
 /-- Each encoded character is one row of Table 3-7. -/
-theorem encodeChar_wellFormed (c : Char) : Spec.WellFormedChar (Utf8.encodeChar c) := by
+theorem encodeChar_wellFormed (c : Char) : Utf.Spec.WellFormedChar (Utf8.encodeChar c) := by
   have hc := toNat_range c
   unfold Utf8.encodeChar
   generalize c.toNat = n at *
   by_cases h1 : n < 0x80
-  · simp [h1, Spec.WellFormedChar, Spec.InRange]
+  · simp [h1, Utf.Spec.WellFormedChar, Utf.Spec.InRange]
     omega
   by_cases h2 : n < 0x800
-  · simp [h1, h2, Spec.WellFormedChar, Spec.InRange]
+  · simp [h1, h2, Utf.Spec.WellFormedChar, Utf.Spec.InRange]
     omega
   by_cases h3 : n < 0x10000
-  · simp [h1, h2, h3, Spec.WellFormedChar, Spec.InRange]
+  · simp [h1, h2, h3, Utf.Spec.WellFormedChar, Utf.Spec.InRange]
     omega
-  · simp [h1, h2, h3, Spec.WellFormedChar, Spec.InRange]
+  · simp [h1, h2, h3, Utf.Spec.WellFormedChar, Utf.Spec.InRange]
     omega
 
 /-- Each row of Table 3-7 is an encoded character. -/
-theorem wellFormedChar_encode (s : List UInt8) (h : Spec.WellFormedChar s) :
+theorem wellFormedChar_encode (s : List UInt8) (h : Utf.Spec.WellFormedChar s) :
     ∃ c, s = Utf8.encodeChar c := by
   have hb := UInt8.toNat_lt_size
   match s, h with
   | [b0], h =>
-    simp only [Spec.WellFormedChar, Spec.InRange] at h
+    simp only [Utf.Spec.WellFormedChar, Utf.Spec.InRange] at h
     have h0 := hb b0
     refine ⟨Char.ofNat b0.toNat, ?_⟩
     unfold Utf8.encodeChar
@@ -66,7 +66,7 @@ theorem wellFormedChar_encode (s : List UInt8) (h : Spec.WellFormedChar s) :
     simp only [show b0.toNat < 0x80 by omega, ↓reduceIte, List.cons.injEq, and_true]
     exact eq_toUInt8 _ _ (by omega)
   | [b0, b1], h =>
-    simp only [Spec.WellFormedChar, Spec.InRange] at h
+    simp only [Utf.Spec.WellFormedChar, Utf.Spec.InRange] at h
     have h0 := hb b0
     have h1 := hb b1
     refine ⟨Char.ofNat ((b0.toNat - 0xC0) * 0x40 + (b1.toNat - 0x80)), ?_⟩
@@ -77,7 +77,7 @@ theorem wellFormedChar_encode (s : List UInt8) (h : Spec.WellFormedChar s) :
       ↓reduceIte, List.cons.injEq, and_true]
     exact ⟨eq_toUInt8 _ _ (by omega), eq_toUInt8 _ _ (by omega)⟩
   | [b0, b1, b2], h =>
-    simp only [Spec.WellFormedChar, Spec.InRange] at h
+    simp only [Utf.Spec.WellFormedChar, Utf.Spec.InRange] at h
     have h0 := hb b0
     have h1 := hb b1
     have h2 := hb b2
@@ -94,7 +94,7 @@ theorem wellFormedChar_encode (s : List UInt8) (h : Spec.WellFormedChar s) :
       ↓reduceIte, List.cons.injEq, and_true]
     exact ⟨eq_toUInt8 _ _ (by omega), eq_toUInt8 _ _ (by omega), eq_toUInt8 _ _ (by omega)⟩
   | [b0, b1, b2, b3], h =>
-    simp only [Spec.WellFormedChar, Spec.InRange] at h
+    simp only [Utf.Spec.WellFormedChar, Utf.Spec.InRange] at h
     have h0 := hb b0
     have h1 := hb b1
     have h2 := hb b2
@@ -113,7 +113,7 @@ theorem wellFormedChar_encode (s : List UInt8) (h : Spec.WellFormedChar s) :
     exact ⟨eq_toUInt8 _ _ (by omega), eq_toUInt8 _ _ (by omega), eq_toUInt8 _ _ (by omega),
       eq_toUInt8 _ _ (by omega)⟩
 
-theorem wellFormedChar_iff (s : List UInt8) : Spec.WellFormedChar s ↔ ∃ c, s = Utf8.encodeChar c := by
+theorem wellFormedChar_iff (s : List UInt8) : Utf.Spec.WellFormedChar s ↔ ∃ c, s = Utf8.encodeChar c := by
   constructor
   · exact wellFormedChar_encode s
   · rintro ⟨c, rfl⟩
@@ -125,7 +125,7 @@ theorem encode_cons (c : Char) (cs : List Char) :
     Utf8.encode (c :: cs) = Utf8.encodeChar c ++ Utf8.encode cs := by
   simp [Utf8.encode, List.flatMap_cons]
 
-theorem wellFormed_iff (bs : List UInt8) : Spec.WellFormed bs ↔ ∃ cs, bs = Utf8.encode cs := by
+theorem wellFormed_iff (bs : List UInt8) : Utf.Spec.WellFormed bs ↔ ∃ cs, bs = Utf8.encode cs := by
   constructor
   · intro h
     induction h with
@@ -136,9 +136,9 @@ theorem wellFormed_iff (bs : List UInt8) : Spec.WellFormed bs ↔ ∃ cs, bs = U
       exact ⟨c :: cs, (encode_cons c cs).symm⟩
   · rintro ⟨cs, rfl⟩
     induction cs with
-    | nil => exact Spec.WellFormed.nil
+    | nil => exact Utf.Spec.WellFormed.nil
     | cons c cs ih =>
       rw [encode_cons]
-      exact Spec.WellFormed.cons (encodeChar_wellFormed c) ih
+      exact Utf.Spec.WellFormed.cons (encodeChar_wellFormed c) ih
 
 end Utf8.Proofs.Table

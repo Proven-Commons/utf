@@ -5,9 +5,9 @@
 -/
 
 import Utf8
-import Spec.Defs
-import Proofs.Decode
-import Proofs.Lossy.Defs
+import Utf.Spec.Defs
+import Utf.Proofs.Decode
+import Utf.Proofs.Lossy.Defs
 
 namespace Utf8.Proofs.Lossy
 

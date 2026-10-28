@@ -1,7 +1,7 @@
 name = "utf8"
 version = "0.1.0"
 license = "Apache-2.0"
-defaultTargets = ["Utf8", "Utf16", "Spec", "Proofs", "utf8"]
+defaultTargets = ["Utf8", "Utf16", "UtfSpec", "UtfProofs", "utf8"]
 
 [[lean_lib]]
 name = "Utf8"
@@ -10,10 +10,12 @@ name = "Utf8"
 name = "Utf16"
 
 [[lean_lib]]
-name = "Spec"
+name = "UtfSpec"
+roots = ["Utf.Spec"]
 
 [[lean_lib]]
-name = "Proofs"
+name = "UtfProofs"
+roots = ["Utf.Proofs"]
 
 [[lean_exe]]
 name = "utf8"
