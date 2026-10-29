@@ -55,7 +55,7 @@ The statements are in `Spec.lean`, the definitions they use in `Spec/Defs.lean` 
 | `decodeLossy` gives exactly what section 3.9.6 of the Unicode Standard, *U+FFFD Substitution of Maximal Subparts*, sets out: each well-formed sequence becomes its character, and each maximal subpart of bad bytes becomes one U+FFFD. | `Spec.decodeLossy_iff` |
 | On well-formed bytes, `decodeLossy` reads what `decode` reads; on any other bytes it gives at least one U+FFFD. | `Spec.decodeLossy_of_decode`, `Spec.decodeLossy_replaces` |
 | Well-formed text before or after bad bytes comes through unchanged: no U+FFFD takes in any of it. | `Spec.decodeLossy_encode_append`, `Spec.decodeLossy_append_encode` |
-| The examples of Tables 3-8 to 3-11 of the Unicode Standard, and two cut-short sequences followed by a character. | `Spec.substitution_vectors` |
+| The examples of Tables 3-8 to 3-11 of the Unicode Standard, and three cut-short sequences followed by a character. | `Spec.substitution_vectors` |
 | The UTF-16 encoder writes each character as RFC 2781, section 2.1, sets out. | `Spec.utf16_encode_eq` |
 | `Utf16.decode` returns a list of characters exactly when the code units are its encoding. So every unit list it accepts has one reading, and it refuses everything else. | `Spec.utf16_decode_iff` |
 | Decoding what the UTF-16 encoder wrote gives the characters back. | `Spec.utf16_decode_encode` |

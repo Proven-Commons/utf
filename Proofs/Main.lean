@@ -139,7 +139,8 @@ theorem Spec.substitution_vectors :
       ['�', '�', '�', '�', 'A'] ∧
     -- A cut-short sequence, then `<` and `A`
     Utf8.decodeLossy [0xF0, 0x9F, 0x98, 0x3C] = ['�', '<'] ∧
-    Utf8.decodeLossy [0xE2, 0x41, 0x42] = ['�', 'A', 'B'] := by
+    Utf8.decodeLossy [0xE2, 0x41, 0x42] = ['�', 'A', 'B'] ∧
+    Utf8.decodeLossy [0xE2, 0x82, 0x3C] = ['�', '<'] := by
   decide
 
 theorem Spec.utf16_encode_eq (cs : List Char) : Utf16.encode cs = Spec.encode16 cs :=
