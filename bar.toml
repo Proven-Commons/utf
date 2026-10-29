@@ -13,7 +13,7 @@ spec_authors = ["claude"]
 entry_points = ["Main.lean"]
 
 [spec]
-files = ["SPEC.md", "Spec.lean", "Spec/Defs.lean", "Spec/Utf16.lean"]
+files = ["SPEC.md", "Utf/Spec.lean", "Utf/Spec/Defs.lean", "Utf/Spec/Utf16.lean"]
 # The code under proof: the functions the statements are about.
 code = ["Utf8.encode", "Utf8.decode", "Utf8.decodeLossy",
         "Utf16.encode", "Utf16.decode", "Utf16.decodeLossy", "Utf16.toWellFormed",

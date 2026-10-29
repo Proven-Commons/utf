@@ -1,6 +1,6 @@
 # Specification: utf
 
-This library is a UTF-8 encoder, a validating decoder, and a lossy decoder, and the same three for UTF-16. It turns Unicode scalar values into bytes, or into UTF-16 code units, and back. A reviewer who did not write this specification approves it. The approval also covers `Spec.lean`, `Spec/Defs.lean`, `Spec/Utf16.lean`, and the other files `bar.toml` lists.
+This library is a UTF-8 encoder, a validating decoder, and a lossy decoder, and the same three for UTF-16. It turns Unicode scalar values into bytes, or into UTF-16 code units, and back. A reviewer who did not write this specification approves it. The approval also covers `Utf/Spec.lean`, `Utf/Spec/Defs.lean`, `Utf/Spec/Utf16.lean`, and the other files `bar.toml` lists.
 
 Characters are Lean's `Char`, which holds exactly the Unicode scalar values: 0 to 0xD7FF and 0xE000 to 0x10FFFF. Bytes are `List UInt8`, and UTF-16 code units `List UInt16`.
 
@@ -57,7 +57,7 @@ At run time, core checks the bytes with C code (`lean_string_validate_utf8`), wh
 
 ## UTF-16
 
-The sources are RFC 2781, *UTF-16, an encoding of ISO 10646*, and the Unicode Standard, version 16.0: D72 to D75 for surrogates, D91 and Table 3-5 for the UTF-16 encoding form, D96 to D98 for the encoding schemes, and section 3.9.6 again for lossy decoding. The lossy byte decoders follow the shared UTF-16 decoder of the WHATWG Encoding Standard, section 14.2.1, and `toWellFormed` follows ECMAScript's `String.prototype.toWellFormed`. `Spec/Utf16.lean` quotes RFC 2781, the Unicode Standard and the WHATWG decoder, and sets out ECMAScript's rule in words.
+The sources are RFC 2781, *UTF-16, an encoding of ISO 10646*, and the Unicode Standard, version 16.0: D72 to D75 for surrogates, D91 and Table 3-5 for the UTF-16 encoding form, D96 to D98 for the encoding schemes, and section 3.9.6 again for lossy decoding. The lossy byte decoders follow the shared UTF-16 decoder of the WHATWG Encoding Standard, section 14.2.1, and `toWellFormed` follows ECMAScript's `String.prototype.toWellFormed`. `Utf/Spec/Utf16.lean` quotes RFC 2781, the Unicode Standard and the WHATWG decoder, and sets out ECMAScript's rule in words.
 
 ### Code units
 
@@ -104,53 +104,67 @@ Like the WHATWG decoders themselves, they read a leading mark in their own order
 
 ## What must always hold
 
-Each property is a theorem in `Spec.lean`, under the name given. The definitions the statements use are in `Spec/Defs.lean` and, for UTF-16, `Spec/Utf16.lean`. They are written from RFC 3629, Table 3-7 and section 3.9.6 (D93a, D93b). Those from RFC 3629 and Table 3-7 are checked against the RFC's examples and against the first and last sequence of each row of the table and the bytes just outside its edges. Those from section 3.9.6 have two direct checks there, and are checked against the standard's examples, Tables 3-8 to 3-11, through `Spec.substitution_vectors` together with `Spec.decodeLossy_iff`.
+Each property is a theorem in `Utf/Spec.lean`, under the name given. The definitions the statements use are in `Utf/Spec/Defs.lean` and, for UTF-16, `Utf/Spec/Utf16.lean`. They are written from RFC 3629, Table 3-7 and section 3.9.6 (D93a, D93b). Those from RFC 3629 and Table 3-7 are checked against the RFC's examples and against the first and last sequence of each row of the table and the bytes just outside its edges. Those from section 3.9.6 have two direct checks there, and are checked against the standard's examples, Tables 3-8 to 3-11, through `Utf.Spec.substitution_vectors` together with `Utf.Spec.decodeLossy_iff`.
 
 | Property | Theorem |
 |----------|---------|
-| The encoder writes each character as the table of RFC 3629, section 3, sets out. | `Spec.encode_eq` |
-| `decode` returns `cs` exactly when the bytes are the encoding of `cs`, so every byte string it accepts has one reading, and it refuses everything listed above. | `Spec.decode_iff` |
-| Decoding what the encoder wrote gives the characters back. | `Spec.decode_encode` |
-| The decoder accepts exactly the byte sequences that Table 3-7 calls well formed. | `Spec.decode_wellFormed` |
-| Lean core's `String.toUTF8`, as core defines it, writes the same bytes as the encoder. | `Spec.encode_toUTF8` |
-| Lean core's `String.fromUTF8?`, as core defines it, agrees with the decoder. | `Spec.fromUTF8?_eq` |
-| The examples of RFC 3629, section 7, both ways. | `Spec.rfc3629_examples` |
-| The first and last code points of each length, those on either side of the surrogates, and the empty input. | `Spec.boundary_vectors` |
-| A selection of malformed inputs, most of them from Markus Kuhn's UTF-8 decoder test file, and each byte from 0xF5 to 0xFF. Every case in that file follows from `Spec.decode_iff`, and the tests run them all. | `Spec.reject_vectors` |
-| `decodeLossy` gives exactly the conversion of section 3.9.6: each character read as `decode` reads it, and one U+FFFD for each maximal subpart. | `Spec.decodeLossy_iff` |
-| On well-formed bytes, `decodeLossy` reads what `decode` reads. | `Spec.decodeLossy_of_decode` |
-| On bytes that are not well formed, `decodeLossy` gives at least one U+FFFD. | `Spec.decodeLossy_replaces` |
-| Well-formed text before or after bad bytes comes through unchanged. | `Spec.decodeLossy_encode_append`, `Spec.decodeLossy_append_encode` |
-| The examples of section 3.9.6, Tables 3-8 to 3-11, and two cut-short sequences followed by a character. | `Spec.substitution_vectors` |
-| The UTF-16 encoder writes each character as RFC 2781, section 2.1, sets out. | `Spec.utf16_encode_eq` |
-| `Utf16.decode` returns `cs` exactly when the units are the encoding of `cs`. | `Spec.utf16_decode_iff` |
-| Decoding what the UTF-16 encoder wrote gives the characters back. | `Spec.utf16_decode_encode` |
-| `Utf16.decode` accepts exactly the unit lists that D91 and Table 3-5 call well formed. | `Spec.utf16_decode_wellFormed` |
-| `Utf16.decode` fails exactly when some unit is an isolated surrogate. | `Spec.utf16_decode_none_iff` |
-| The number of units is one for each character and one more for each character from U+10000 up. | `Spec.utf16_encode_length` |
-| `Utf16.decodeLossy` gives exactly the conversion of section 3.9.6, for UTF-16. | `Spec.utf16_decodeLossy_iff` |
-| An isolated surrogate becomes one U+FFFD, and decoding goes on at the very next unit. | `Spec.utf16_decodeLossy_unpaired` |
-| On well-formed units, `Utf16.decodeLossy` reads what `Utf16.decode` reads; on any other units it gives at least one U+FFFD. | `Spec.utf16_decodeLossy_of_decode`, `Spec.utf16_decodeLossy_replaces` |
-| Well-formed text before or after bad units comes through unchanged. | `Spec.utf16_decodeLossy_encode_append`, `Spec.utf16_decodeLossy_append_encode` |
-| `toWellFormed` keeps the number of units, puts 0xFFFD in place of each isolated surrogate, and keeps every other unit. | `Spec.utf16_toWellFormed` |
-| `encodeBE` and `encodeLE` write the bytes of RFC 2781, section 3.1, and D96 and D97. | `Spec.utf16_encodeBytes` |
-| `decodeBE` and `decodeLE` return `cs` exactly when the bytes are its UTF-16BE or UTF-16LE encoding. | `Spec.utf16be_decode_iff`, `Spec.utf16le_decode_iff` |
-| `decodeScheme` reads the UTF-16 encoding scheme as D98 and RFC 2781, section 4.3, say. | `Spec.utf16_decodeScheme_iff` |
-| `decodeLossyBE` and `decodeLossyLE` give exactly what the WHATWG UTF-16BE and UTF-16LE decoders give. | `Spec.utf16_whatwg` |
-| On whole units, the lossy byte decoders give the conversion of section 3.9.6. | `Spec.utf16_decodeLossyBytes_units` |
-| The examples of D91, D96, D97 and RFC 2781, section 5, both ways, and D98's and RFC 2781's texts with a mark, read; the ends of the ranges; marks; isolated surrogates refused and replaced; and a high surrogate cut off by an odd byte. | `Spec.utf16_vectors` |
+| The encoder writes each character as the table of RFC 3629, section 3, sets out. | `Utf.Spec.encode_eq` |
+| `decode` returns `cs` exactly when the bytes are the encoding of `cs`, so every byte string it accepts has one reading, and it refuses everything listed above. | `Utf.Spec.decode_iff` |
+| Decoding what the encoder wrote gives the characters back. | `Utf.Spec.decode_encode` |
+| The decoder accepts exactly the byte sequences that Table 3-7 calls well formed. | `Utf.Spec.decode_wellFormed` |
+| Lean core's `String.toUTF8`, as core defines it, writes the same bytes as the encoder. | `Utf.Spec.encode_toUTF8` |
+| Lean core's `String.fromUTF8?`, as core defines it, agrees with the decoder. | `Utf.Spec.fromUTF8?_eq` |
+| The examples of RFC 3629, section 7, both ways. | `Utf.Spec.rfc3629_examples` |
+| The first and last code points of each length, those on either side of the surrogates, and the empty input. | `Utf.Spec.boundary_vectors` |
+| A selection of malformed inputs, most of them from Markus Kuhn's UTF-8 decoder test file, and each byte from 0xF5 to 0xFF. Every case in that file follows from `Utf.Spec.decode_iff`, and the tests run them all. | `Utf.Spec.reject_vectors` |
+| `decodeLossy` gives exactly the conversion of section 3.9.6: each character read as `decode` reads it, and one U+FFFD for each maximal subpart. | `Utf.Spec.decodeLossy_iff` |
+| On well-formed bytes, `decodeLossy` reads what `decode` reads. | `Utf.Spec.decodeLossy_of_decode` |
+| On bytes that are not well formed, `decodeLossy` gives at least one U+FFFD. | `Utf.Spec.decodeLossy_replaces` |
+| Well-formed text before or after bad bytes comes through unchanged. | `Utf.Spec.decodeLossy_encode_append`, `Utf.Spec.decodeLossy_append_encode` |
+| The examples of section 3.9.6, Tables 3-8 to 3-11, and three cut-short sequences followed by a character. | `Utf.Spec.substitution_vectors` |
+| The UTF-16 encoder writes each character as RFC 2781, section 2.1, sets out. | `Utf.Spec.utf16_encode_eq` |
+| `Utf16.decode` returns `cs` exactly when the units are the encoding of `cs`. | `Utf.Spec.utf16_decode_iff` |
+| Decoding what the UTF-16 encoder wrote gives the characters back. | `Utf.Spec.utf16_decode_encode` |
+| `Utf16.decode` accepts exactly the unit lists that D91 and Table 3-5 call well formed. | `Utf.Spec.utf16_decode_wellFormed` |
+| `Utf16.decode` fails exactly when some unit is an isolated surrogate. | `Utf.Spec.utf16_decode_none_iff` |
+| The number of units is one for each character and one more for each character from U+10000 up. | `Utf.Spec.utf16_encode_length` |
+| `Utf16.decodeLossy` gives exactly the conversion of section 3.9.6, for UTF-16. | `Utf.Spec.utf16_decodeLossy_iff` |
+| An isolated surrogate becomes one U+FFFD, and decoding goes on at the very next unit. | `Utf.Spec.utf16_decodeLossy_unpaired` |
+| On well-formed units, `Utf16.decodeLossy` reads what `Utf16.decode` reads; on any other units it gives at least one U+FFFD. | `Utf.Spec.utf16_decodeLossy_of_decode`, `Utf.Spec.utf16_decodeLossy_replaces` |
+| Well-formed text before or after bad units comes through unchanged. | `Utf.Spec.utf16_decodeLossy_encode_append`, `Utf.Spec.utf16_decodeLossy_append_encode` |
+| `toWellFormed` keeps the number of units, puts 0xFFFD in place of each isolated surrogate, and keeps every other unit. | `Utf.Spec.utf16_toWellFormed` |
+| `encodeBE` and `encodeLE` write the bytes of RFC 2781, section 3.1, and D96 and D97. | `Utf.Spec.utf16_encodeBytes` |
+| `decodeBE` and `decodeLE` return `cs` exactly when the bytes are its UTF-16BE or UTF-16LE encoding. | `Utf.Spec.utf16be_decode_iff`, `Utf.Spec.utf16le_decode_iff` |
+| `decodeScheme` reads the UTF-16 encoding scheme as D98 and RFC 2781, section 4.3, say. | `Utf.Spec.utf16_decodeScheme_iff` |
+| `decodeLossyBE` and `decodeLossyLE` give exactly what the WHATWG UTF-16BE and UTF-16LE decoders give. | `Utf.Spec.utf16_whatwg` |
+| On whole units, the lossy byte decoders give the conversion of section 3.9.6. | `Utf.Spec.utf16_decodeLossyBytes_units` |
+| The examples of D91, D96, D97 and RFC 2781, section 5, both ways, and D98's and RFC 2781's texts with a mark, read; the ends of the ranges; marks; isolated surrogates refused and replaced; and a high surrogate cut off by an odd byte. | `Utf.Spec.utf16_vectors` |
 
 Together, these fix every output.
 
 - `encode` is fixed for every input.
 - `decode` is fixed for every input.
-- `decodeLossy` is fixed for every input, by `Spec.decodeLossy_iff`.
-- A decoder that accepted nothing would fail `Spec.decode_encode`.
-- A decoder that accepted too much would fail `Spec.decode_iff`.
-- For UTF-16, the same holds by the statements of the same names. Each byte function is fixed for every input: the encoders and the strict decoders by their own statements, `decodeScheme` by `Spec.utf16_decodeScheme_iff`, and the lossy byte decoders by `Spec.utf16_whatwg`. `toWellFormed` is fixed unit by unit.
+- `decodeLossy` is fixed for every input, by `Utf.Spec.decodeLossy_iff`.
+- A decoder that accepted nothing would fail `Utf.Spec.decode_encode`.
+- A decoder that accepted too much would fail `Utf.Spec.decode_iff`.
+- For UTF-16, the same holds by the statements of the same names. Each byte function is fixed for every input: the encoders and the strict decoders by their own statements, `decodeScheme` by `Utf.Spec.utf16_decodeScheme_iff`, and the lossy byte decoders by `Utf.Spec.utf16_whatwg`. `toWellFormed` is fixed unit by unit.
 
 ## Oracle
 
 Python's strict `utf-8` codec, on every input, and its `replace` error handler for the lossy decoder. Lean core's `String.fromUTF8?` at run time is checked against the same answers as the strict decoder.
 
 For UTF-16, Python's `utf-16-be` and `utf-16-le` codecs, strict and with `replace`, for the unit decoders and the byte decoders. Python's `utf-16` codec reads text that starts with a byte order mark. Text with no mark goes to `utf-16-be`, since Python's `utf-16` would read it in the machine's byte order, little-endian on most machines. For `toWellFormed`, the oracle is ECMAScript's `CodePointAt` rule, written out in `tests/run_tests.py`.
+
+## Mutation evidence limits
+
+The merged lossy UTF-8 slice lists eight behavior-changing mutations:
+one replacement per bad byte; four separate second-byte bound mutations
+for E0, ED, F0 and F4; failing to count the third byte of a truncated
+four-byte sequence; allowing leads through F7; and a two-byte lead
+swallowing the following byte. This accounts for eight, not five.
+
+The UTF-16 PR reports fourteen mutations, but its published list identifies
+only thirteen when the two disjunctions are counted separately. No
+fourteenth mutation or reproducible mutation runner is recorded in this
+repository. The fourteen-run claim therefore remains unverified; the
+ordinary differential results are recorded in `tests/TEST-RESULTS.md`.

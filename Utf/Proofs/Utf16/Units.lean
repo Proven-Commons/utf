@@ -5,7 +5,7 @@
 -/
 
 import Utf16
-import Spec.Utf16
+import Utf.Spec.Utf16
 
 namespace Utf16.Proofs
 
@@ -62,20 +62,20 @@ private theorem un_or_lo (m : Nat) :
   have hb : m % 2 ^ 10 < 2 ^ 10 := Nat.mod_lt _ (by decide)
   exact (Nat.two_pow_add_eq_or_of_lt hb 55).symm
 
-private theorem un_encodeChar_spec (c : Char) : encodeChar c = Spec.encodeChar16 c := by
+private theorem un_encodeChar_spec (c : Char) : encodeChar c = Utf.Spec.encodeChar16 c := by
   have hv := un_valid c
-  unfold encodeChar Spec.encodeChar16
+  unfold encodeChar Utf.Spec.encodeChar16
   simp only
   split
   · rfl
   · rw [un_or_hi _ (by omega), un_or_lo]
 
-theorem encode_eq (cs : List Char) : Utf16.encode cs = Spec.encode16 cs := by
+theorem encode_eq (cs : List Char) : Utf16.encode cs = Utf.Spec.encode16 cs := by
   induction cs with
-  | nil => simp [encode, Spec.encode16]
+  | nil => simp [encode, Utf.Spec.encode16]
   | cons c cs ih =>
     rw [un_encode_cons, ih, un_encodeChar_spec]
-    simp only [Spec.encode16, List.map_cons, List.flatten_cons]
+    simp only [Utf.Spec.encode16, List.map_cons, List.flatten_cons]
 
 
 /-! ## The decoder, one character at a time -/
@@ -165,28 +165,28 @@ theorem decode_encode (cs : List Char) : Utf16.decode (Utf16.encode cs) = some c
 /-! ## Well-formed sequences -/
 
 private theorem un_wellFormedChar_iff (s : List UInt16) :
-    Spec.WellFormedChar16 s ↔ ∃ c, s = encodeChar c := by
+    Utf.Spec.WellFormedChar16 s ↔ ∃ c, s = encodeChar c := by
   constructor
   · intro h
     rcases s with _ | ⟨w, _ | ⟨w2, _ | ⟨w3, s⟩⟩⟩
-    · simp [Spec.WellFormedChar16] at h
-    · simp only [Spec.WellFormedChar16] at h
+    · simp [Utf.Spec.WellFormedChar16] at h
+    · simp only [Utf.Spec.WellFormedChar16] at h
       exact ⟨Char.ofNat w.toNat, (un_encodeChar_single w (by omega)).symm⟩
-    · simp only [Spec.WellFormedChar16, Spec.High, Spec.Low] at h
+    · simp only [Utf.Spec.WellFormedChar16, Utf.Spec.High, Utf.Spec.Low] at h
       exact ⟨pair w w2, (un_encodeChar_pair w w2 h.1 h.2).symm⟩
-    · simp [Spec.WellFormedChar16] at h
+    · simp [Utf.Spec.WellFormedChar16] at h
   · rintro ⟨c, rfl⟩
     have hv := un_valid c
     by_cases h : c.toNat < 0x10000
     · rw [un_encodeChar_lt c h]
-      simp only [Spec.WellFormedChar16, un_toNat_toUInt16]
+      simp only [Utf.Spec.WellFormedChar16, un_toNat_toUInt16]
       omega
     · rw [un_encodeChar_ge c h]
-      simp only [Spec.WellFormedChar16, Spec.High, Spec.Low, un_toNat_toUInt16]
+      simp only [Utf.Spec.WellFormedChar16, Utf.Spec.High, Utf.Spec.Low, un_toNat_toUInt16]
       omega
 
 theorem wellFormed_iff (us : List UInt16) :
-    Spec.WellFormed16 us ↔ ∃ cs, us = Utf16.encode cs := by
+    Utf.Spec.WellFormed16 us ↔ ∃ cs, us = Utf16.encode cs := by
   constructor
   · intro h
     induction h with
@@ -197,20 +197,20 @@ theorem wellFormed_iff (us : List UInt16) :
       exact ⟨c :: cs, (un_encode_cons c cs).symm⟩
   · rintro ⟨cs, rfl⟩
     induction cs with
-    | nil => simpa [encode] using Spec.WellFormed16.nil
+    | nil => simpa [encode] using Utf.Spec.WellFormed16.nil
     | cons c cs ih =>
       rw [un_encode_cons]
-      exact Spec.WellFormed16.cons ((un_wellFormedChar_iff _).2 ⟨c, rfl⟩) ih
+      exact Utf.Spec.WellFormed16.cons ((un_wellFormedChar_iff _).2 ⟨c, rfl⟩) ih
 
 /-! ## Unpaired surrogates -/
 
 /-- A unit put before the units on the left of `w` changes nothing, so
     long as it is not a high surrogate right before `w`. -/
 private theorem un_unpaired_cons_iff {a : UInt16} {l : List UInt16} {w : UInt16}
-    {r : List UInt16} (ha : l = [] → ¬ Spec.High a) :
-    Spec.Unpaired (a :: l) w r ↔ Spec.Unpaired l w r := by
-  unfold Spec.Unpaired
-  have key : (∃ l' v, a :: l = l' ++ [v] ∧ Spec.High v) ↔ (∃ l' v, l = l' ++ [v] ∧ Spec.High v) := by
+    {r : List UInt16} (ha : l = [] → ¬ Utf.Spec.High a) :
+    Utf.Spec.Unpaired (a :: l) w r ↔ Utf.Spec.Unpaired l w r := by
+  unfold Utf.Spec.Unpaired
+  have key : (∃ l' v, a :: l = l' ++ [v] ∧ Utf.Spec.High v) ↔ (∃ l' v, l = l' ++ [v] ∧ Utf.Spec.High v) := by
     constructor
     · rintro ⟨l', v, he, hv⟩
       rcases l' with _ | ⟨b, l''⟩
@@ -224,7 +224,7 @@ private theorem un_unpaired_cons_iff {a : UInt16} {l : List UInt16} {w : UInt16}
 
 /-- No unit of an encoding is an unpaired surrogate. -/
 private theorem un_encode_not_unpaired (cs : List Char) :
-    ∀ l w r, encode cs = l ++ w :: r → ¬ Spec.Unpaired l w r := by
+    ∀ l w r, encode cs = l ++ w :: r → ¬ Utf.Spec.Unpaired l w r := by
   induction cs with
   | nil => intro l w r h; simp [encode] at h
   | cons c cs ih =>
@@ -234,13 +234,13 @@ private theorem un_encode_not_unpaired (cs : List Char) :
     by_cases hc : c.toNat < 0x10000
     · rw [un_encodeChar_lt c hc] at h
       have hu : c.toNat.toUInt16.toNat = c.toNat := by rw [un_toNat_toUInt16]; omega
-      have hnh : ¬ Spec.High c.toNat.toUInt16 := by unfold Spec.High; rw [hu]; omega
+      have hnh : ¬ Utf.Spec.High c.toNat.toUInt16 := by unfold Utf.Spec.High; rw [hu]; omega
       rcases l with _ | ⟨a, l'⟩
       · simp only [List.nil_append, List.singleton_append, List.cons.injEq] at h
         obtain ⟨rfl, rfl⟩ := h
         rcases hun with ⟨h1, _⟩ | ⟨h1, _⟩
         · exact hnh h1
-        · unfold Spec.Low at h1; rw [hu] at h1; omega
+        · unfold Utf.Spec.Low at h1; rw [hu] at h1; omega
       · simp only [List.cons_append, List.cons.injEq] at h
         obtain ⟨rfl, h⟩ := h
         exact ih l' w r h ((un_unpaired_cons_iff (fun _ => hnh)).1 hun)
@@ -253,10 +253,10 @@ private theorem un_encode_not_unpaired (cs : List Char) :
         rw [un_toNat_toUInt16]; omega
       generalize (0xD800 + m / 0x400).toUInt16 = hi at h h1
       generalize (0xDC00 + m % 0x400).toUInt16 = lo at h h2
-      have hhi : Spec.High hi := by unfold Spec.High; rw [h1]; omega
-      have hlo : Spec.Low lo := by unfold Spec.Low; rw [h2]; omega
-      have hlo' : ¬ Spec.High lo := by unfold Spec.High; rw [h2]; omega
-      have hhi' : ¬ Spec.Low hi := by unfold Spec.Low; rw [h1]; omega
+      have hhi : Utf.Spec.High hi := by unfold Utf.Spec.High; rw [h1]; omega
+      have hlo : Utf.Spec.Low lo := by unfold Utf.Spec.Low; rw [h2]; omega
+      have hlo' : ¬ Utf.Spec.High lo := by unfold Utf.Spec.High; rw [h2]; omega
+      have hhi' : ¬ Utf.Spec.Low hi := by unfold Utf.Spec.Low; rw [h1]; omega
       rcases l with _ | ⟨a, _ | ⟨b, l''⟩⟩
       · simp only [List.nil_append, List.cons_append, List.cons.injEq] at h
         obtain ⟨rfl, rfl⟩ := h
@@ -274,7 +274,7 @@ private theorem un_encode_not_unpaired (cs : List Char) :
         exact ih l'' w r h hun
 
 theorem decode_none_iff (us : List UInt16) :
-    Utf16.decode us = none ↔ ∃ l w r, us = l ++ w :: r ∧ Spec.Unpaired l w r := by
+    Utf16.decode us = none ↔ ∃ l w r, us = l ++ w :: r ∧ Utf.Spec.Unpaired l w r := by
   constructor
   · intro h
     induction us using decode.induct with
@@ -283,8 +283,8 @@ theorem decode_none_iff (us : List UInt16) :
       rw [un_decode_pair _ _ _ hu hv, Option.map_eq_none_iff] at h
       obtain ⟨l, w, r, rfl, hun⟩ := ih h
       refine ⟨u :: v :: l, w, r, rfl, ?_⟩
-      have hvh : ¬ Spec.High v := by
-        rw [un_isLow_iff] at hv; unfold Spec.High; omega
+      have hvh : ¬ Utf.Spec.High v := by
+        rw [un_isLow_iff] at hv; unfold Utf.Spec.High; omega
       rw [un_unpaired_cons_iff (by simp), un_unpaired_cons_iff (fun _ => hvh)]
       exact hun
     | case3 u hu v rest' hv =>
@@ -304,7 +304,7 @@ theorem decode_none_iff (us : List UInt16) :
       rw [un_decode_single _ _ hu hl, Option.map_eq_none_iff] at h
       obtain ⟨l, w, r, rfl, hun⟩ := ih h
       refine ⟨u :: l, w, r, rfl, ?_⟩
-      have huh : ¬ Spec.High u := fun h' => hu ((un_isHigh_iff u).2 h')
+      have huh : ¬ Utf.Spec.High u := fun h' => hu ((un_isHigh_iff u).2 h')
       rw [un_unpaired_cons_iff (fun _ => huh)]
       exact hun
   · rintro ⟨l, w, r, hus, hun⟩

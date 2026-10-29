@@ -1,13 +1,13 @@
 /-
   The encoder of `Utf8/Codec.lean` against the specification and
   against Lean core: `Utf8.encodeChar` writes the same bytes as the
-  bit-level table of RFC 3629 (`Spec.encodeChar`), and the same bytes
-  as core's `String.utf8EncodeChar`; so `Utf8.encode` is `Spec.encode`,
+  bit-level table of RFC 3629 (`Utf.Spec.encodeChar`), and the same bytes
+  as core's `String.utf8EncodeChar`; so `Utf8.encode` is `Utf.Spec.encode`,
   and on a string it gives the bytes of `String.toUTF8`.
 -/
 
 import Utf8
-import Spec.Defs
+import Utf.Spec.Defs
 
 namespace Utf8.Proofs.Encode
 
@@ -24,8 +24,8 @@ theorem and_63 (x : Nat) : x &&& 0b111111 = x % 64 :=
   Nat.and_two_pow_sub_one_eq_mod x 6
 
 /-- A continuation byte as arithmetic: the marker 0x80 plus six bits. -/
-theorem contByte_eq (n k : Nat) : Spec.contByte n k = (0x80 + n / 2 ^ (6 * k) % 0x40).toUInt8 := by
-  unfold Spec.contByte
+theorem contByte_eq (n k : Nat) : Utf.Spec.contByte n k = (0x80 + n / 2 ^ (6 * k) % 0x40).toUInt8 := by
+  unfold Utf.Spec.contByte
   rw [Nat.shiftRight_eq_div_pow, and_63, or_eq_add 128 _ 6 rfl (Nat.mod_lt _ (by decide))]
 
 theorem lead2 (n : Nat) (h : n < 0x800) : (0b11000000 ||| n >>> 6) = 0xC0 + n / 0x40 := by
@@ -45,9 +45,9 @@ theorem toNat_lt (c : Char) : c.toNat < 0x110000 := by
 
 /-! ## One character -/
 
-theorem encodeChar_eq (c : Char) : Utf8.encodeChar c = Spec.encodeChar c := by
+theorem encodeChar_eq (c : Char) : Utf8.encodeChar c = Utf.Spec.encodeChar c := by
   have hc := toNat_lt c
-  unfold Utf8.encodeChar Spec.encodeChar
+  unfold Utf8.encodeChar Utf.Spec.encodeChar
   simp only [contByte_eq]
   generalize c.toNat = n at *
   by_cases h1 : n < 0x80
@@ -60,8 +60,8 @@ theorem encodeChar_eq (c : Char) : Utf8.encodeChar c = Spec.encodeChar c := by
   · simp [h1, h2, h3, show ¬ n ≤ 0x7F by omega, show ¬ n ≤ 0x7FF by omega,
       show ¬ n ≤ 0xFFFF by omega, lead4 n hc]
 
-theorem encode_eq (cs : List Char) : Utf8.encode cs = Spec.encode cs := by
-  unfold Utf8.encode Spec.encode
+theorem encode_eq (cs : List Char) : Utf8.encode cs = Utf.Spec.encode cs := by
+  unfold Utf8.encode Utf.Spec.encode
   induction cs with
   | nil => rfl
   | cons c cs ih => simp [List.flatMap_cons, ih, encodeChar_eq]
