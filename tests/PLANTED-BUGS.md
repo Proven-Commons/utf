@@ -2,11 +2,12 @@
 
 Written by `python3 tests/planted_bugs.py`. Each row is one small change to the
 code under proof, made in a copy. Before any change, the copy's tool builds, the
-tests report 0 failures, and `lake build Proofs` succeeds. With each change, the
-tests ran as `python3 tests/run_tests.py --count 20000` runs them, on 2,415,209
-inputs from their recorded seed, counted as `tests/TEST-RESULTS.md` counts them,
-against the changed tool. A bug is caught when they report failures. The last
-column says whether `lake build Proofs` still succeeds with the change.
+tests report 0 failures, and `lake build UtfProofs` succeeds. With each change,
+the tests ran as `python3 tests/run_tests.py --count 20000` runs them, on
+2,415,209 inputs from their recorded seed, counted as `tests/TEST-RESULTS.md`
+counts them, against the changed tool. A bug is caught when they report
+failures. The last column says whether `lake build UtfProofs` still succeeds
+with the change.
 
 | Bug | File | Failures | Proofs |
 |-----|------|----------|--------|

@@ -7,7 +7,7 @@
 -/
 
 import Utf8
-import Spec.Defs
+import Utf.Spec.Defs
 
 namespace Utf8.Proofs.Decode
 

@@ -181,7 +181,7 @@ def run(count):
             sys.exit(f"with no change, the tool does not build\n{tool.stdout[-2000:]}")
         if test(work, "with no change", count) != 0:
             sys.exit("with no change, the tests report failures")
-        proofs = build(work, "Proofs")
+        proofs = build(work, "UtfProofs")
         if proofs.returncode != 0:
             sys.exit(f"with no change, the proofs do not build\n{proofs.stdout[-2000:]}")
         m = re.search(r"^- Inputs: (\d+)$", (work / "tests" / "TEST-RESULTS.md").read_text(),
@@ -202,7 +202,7 @@ def run(count):
                 path.write_text(original)
                 sys.exit(f"{name}: the tool does not build with this change\n{tool.stdout[-2000:]}")
             n = test(work, name, count)
-            broke = build(work, "Proofs").returncode != 0
+            broke = build(work, "UtfProofs").returncode != 0
             path.write_text(original)
             rows.append((name, rel, old, new, equivalent, n, broke))
             print(f"{name}: {n} failures; proofs {'fail to build' if broke else 'build'}",
@@ -214,11 +214,11 @@ def write(rows, count, inputs):
     intro = (
         "Written by `python3 tests/planted_bugs.py`. Each row is one small change to the "
         "code under proof, made in a copy. Before any change, the copy's tool builds, the "
-        "tests report 0 failures, and `lake build Proofs` succeeds. With each change, the "
+        "tests report 0 failures, and `lake build UtfProofs` succeeds. With each change, the "
         f"tests ran as `python3 tests/run_tests.py --count {count}` runs them, on {inputs:,} "
         "inputs from their recorded seed, counted as `tests/TEST-RESULTS.md` counts them, "
         "against the changed tool. A bug is caught when they report failures. The last "
-        "column says whether `lake build Proofs` still succeeds with the change."
+        "column says whether `lake build UtfProofs` still succeeds with the change."
     )
     lines = ["# Planted bugs", "", *textwrap.wrap(intro, 80), "",
              "| Bug | File | Failures | Proofs |",

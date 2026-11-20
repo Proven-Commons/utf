@@ -3,21 +3,21 @@
   and `toWellFormed` against ECMAScript.
 -/
 
-import Proofs.Utf16.Units
+import Utf.Proofs.Utf16.Units
 
 namespace Utf16.Proofs
 
 /-! ## Units and characters -/
 
 
-theorem lo_isHigh_iff (u : UInt16) : isHigh u = true ↔ Spec.High u := by
-  simp [isHigh, Spec.High]
+theorem lo_isHigh_iff (u : UInt16) : isHigh u = true ↔ Utf.Spec.High u := by
+  simp [isHigh, Utf.Spec.High]
 
-theorem lo_isLow_iff (u : UInt16) : isLow u = true ↔ Spec.Low u := by
-  simp [isLow, Spec.Low]
+theorem lo_isLow_iff (u : UInt16) : isLow u = true ↔ Utf.Spec.Low u := by
+  simp [isLow, Utf.Spec.Low]
 
-theorem lo_high_not_low {u : UInt16} (h : Spec.High u) : ¬ Spec.Low u := by
-  unfold Spec.High at h; unfold Spec.Low; omega
+theorem lo_high_not_low {u : UInt16} (h : Utf.Spec.High u) : ¬ Utf.Spec.Low u := by
+  unfold Utf.Spec.High at h; unfold Utf.Spec.Low; omega
 
 theorem lo_isHigh_not_isLow {u : UInt16} (h : isHigh u = true) : isLow u = false := by
   have h1 := lo_high_not_low ((lo_isHigh_iff u).1 h)
@@ -84,9 +84,9 @@ theorem lo_encodeChar_cases (c : Char) :
   · intro hd
     exact Or.inr ⟨_, _, rfl, lo_decode_two hd⟩
 
-theorem lo_encodeChar16 (c : Char) : Spec.encodeChar16 c = encodeChar c := by
+theorem lo_encodeChar16 (c : Char) : Utf.Spec.encodeChar16 c = encodeChar c := by
   have h := encode_eq [c]
-  simpa [encode, Spec.encode16] using h.symm
+  simpa [encode, Utf.Spec.encode16] using h.symm
 
 theorem lo_encodeChar_pair {u v : UInt16} (hu : isHigh u = true) (hv : isLow v = true) :
     encodeChar (pair u v) = [u, v] := by
@@ -127,52 +127,52 @@ theorem lo_encode_head {cs : List Char} {e : UInt16} {X : List UInt16}
 
 /-! ## Unconvertible offsets and initial subsequences -/
 
-theorem lo_wf_head {s : List UInt16} (hs : Spec.WellFormed16 s) :
+theorem lo_wf_head {s : List UInt16} (hs : Utf.Spec.WellFormed16 s) :
     ∀ w t, s = w :: t →
-      ¬ Spec.Low w ∧ (Spec.High w → ∃ v t', t = v :: t' ∧ Spec.Low v) := by
+      ¬ Utf.Spec.Low w ∧ (Utf.Spec.High w → ∃ v t', t = v :: t' ∧ Utf.Spec.Low v) := by
   cases hs with
   | nil => intro w t h; simp at h
   | cons hc hr =>
     rename_i s1 rest
     intro w t h
     rcases s1 with _ | ⟨x, _ | ⟨y, _ | ⟨z, s2⟩⟩⟩
-    · simp [Spec.WellFormedChar16] at hc
-    · simp only [Spec.WellFormedChar16] at hc
+    · simp [Utf.Spec.WellFormedChar16] at hc
+    · simp only [Utf.Spec.WellFormedChar16] at hc
       simp only [List.singleton_append, List.cons.injEq] at h
       obtain ⟨rfl, -⟩ := h
-      unfold Spec.Low Spec.High
+      unfold Utf.Spec.Low Utf.Spec.High
       omega
-    · simp only [Spec.WellFormedChar16] at hc
+    · simp only [Utf.Spec.WellFormedChar16] at hc
       simp only [List.cons_append, List.cons.injEq] at h
       obtain ⟨rfl, rfl⟩ := h
       exact ⟨lo_high_not_low hc.1, fun _ => ⟨y, rest, rfl, hc.2⟩⟩
-    · simp [Spec.WellFormedChar16] at hc
+    · simp [Utf.Spec.WellFormedChar16] at hc
 
-theorem lo_wf_single {w : UInt16} (h1 : ¬ Spec.High w) (h2 : ¬ Spec.Low w) :
-    Spec.WellFormed16 [w] := by
-  have hc : Spec.WellFormedChar16 [w] := by
-    simp only [Spec.WellFormedChar16]
-    unfold Spec.High at h1; unfold Spec.Low at h2
+theorem lo_wf_single {w : UInt16} (h1 : ¬ Utf.Spec.High w) (h2 : ¬ Utf.Spec.Low w) :
+    Utf.Spec.WellFormed16 [w] := by
+  have hc : Utf.Spec.WellFormedChar16 [w] := by
+    simp only [Utf.Spec.WellFormedChar16]
+    unfold Utf.Spec.High at h1; unfold Utf.Spec.Low at h2
     omega
-  have := Spec.WellFormed16.cons hc Spec.WellFormed16.nil
+  have := Utf.Spec.WellFormed16.cons hc Utf.Spec.WellFormed16.nil
   simpa using this
 
-theorem lo_wf_pair {w v : UInt16} (h1 : Spec.High w) (h2 : Spec.Low v) :
-    Spec.WellFormed16 [w, v] := by
-  have hc : Spec.WellFormedChar16 [w, v] := by
-    simp only [Spec.WellFormedChar16]
+theorem lo_wf_pair {w v : UInt16} (h1 : Utf.Spec.High w) (h2 : Utf.Spec.Low v) :
+    Utf.Spec.WellFormed16 [w, v] := by
+  have hc : Utf.Spec.WellFormedChar16 [w, v] := by
+    simp only [Utf.Spec.WellFormedChar16]
     exact ⟨h1, h2⟩
-  have := Spec.WellFormed16.cons hc Spec.WellFormed16.nil
+  have := Utf.Spec.WellFormed16.cons hc Utf.Spec.WellFormed16.nil
   simpa using this
 
 theorem lo_unconv_cons (w : UInt16) (r : List UInt16) :
-    Spec.Unconvertible16 (w :: r) ↔
-      Spec.Low w ∨ (Spec.High w ∧ ¬ ∃ v r', r = v :: r' ∧ Spec.Low v) := by
+    Utf.Spec.Unconvertible16 (w :: r) ↔
+      Utf.Spec.Low w ∨ (Utf.Spec.High w ∧ ¬ ∃ v r', r = v :: r' ∧ Utf.Spec.Low v) := by
   constructor
   · intro hU
-    by_cases hl : Spec.Low w
+    by_cases hl : Utf.Spec.Low w
     · exact Or.inl hl
-    by_cases hh : Spec.High w
+    by_cases hh : Utf.Spec.High w
     · refine Or.inr ⟨hh, ?_⟩
       rintro ⟨v, r', rfl, hv⟩
       exact hU [w, v] (by simp) ⟨r', rfl⟩ (lo_wf_pair hh hv)
@@ -190,8 +190,8 @@ theorem lo_unconv_cons (w : UInt16) (r : List UInt16) :
       · obtain ⟨v, t', rfl, hv⟩ := hh.2 hh'
         exact hn ⟨v, t' ++ t, by rw [← ht]; simp, hv⟩
 
-theorem lo_initial_two {w v : UInt16} {q : List UInt16} (h : Spec.Initial16 (w :: v :: q)) :
-    ¬ Spec.Low w ∧ (Spec.High w → Spec.Low v) := by
+theorem lo_initial_two {w v : UInt16} {q : List UInt16} (h : Utf.Spec.Initial16 (w :: v :: q)) :
+    ¬ Utf.Spec.Low w ∧ (Utf.Spec.High w → Utf.Spec.Low v) := by
   obtain ⟨s, hs, t, rfl⟩ := h
   have := lo_wf_head hs w (v :: q ++ t) (by simp)
   refine ⟨this.1, fun hh => ?_⟩
@@ -200,7 +200,7 @@ theorem lo_initial_two {w v : UInt16} {q : List UInt16} (h : Spec.Initial16 (w :
   rw [he.1]; exact hv
 
 theorem lo_maximalSubpart_iff (p rest : List UInt16) :
-    Spec.MaximalSubpart16 p rest ↔ ∃ w, p = [w] ∧ Spec.Unpaired [] w rest := by
+    Utf.Spec.MaximalSubpart16 p rest ↔ ∃ w, p = [w] ∧ Utf.Spec.Unpaired [] w rest := by
   constructor
   · rintro ⟨hne, hU, hI, -⟩
     cases p with
@@ -217,7 +217,7 @@ theorem lo_maximalSubpart_iff (p rest : List UInt16) :
         · left; exact hh
       | cons v p'' =>
         exfalso
-        have hI' : Spec.Initial16 (w :: v :: p'') := by
+        have hI' : Utf.Spec.Initial16 (w :: v :: p'') := by
           rcases hI with hI | hI
           · exact hI
           · simp at hI
@@ -237,7 +237,7 @@ theorem lo_maximalSubpart_iff (p rest : List UInt16) :
       | [_], _, _ => simp
       | x :: y :: q'', hq, hI =>
         exfalso
-        have hI' : Spec.Initial16 (x :: y :: q'') := by
+        have hI' : Utf.Spec.Initial16 (x :: y :: q'') := by
           rcases hI with hI | hI
           · exact hI
           · simp at hI
@@ -252,7 +252,7 @@ theorem lo_maximalSubpart_iff (p rest : List UInt16) :
 
 /-! ## Lossy decoding -/
 
-theorem lo_dl_unpaired {w : UInt16} {rest : List UInt16} (hu : Spec.Unpaired [] w rest) :
+theorem lo_dl_unpaired {w : UInt16} {rest : List UInt16} (hu : Utf.Spec.Unpaired [] w rest) :
     decodeLossy (w :: rest) = replacement :: decodeLossy rest := by
   rcases hu with ⟨hh, hn⟩ | ⟨hl, -⟩
   · rw [← lo_isHigh_iff] at hh
@@ -267,47 +267,47 @@ theorem lo_dl_unpaired {w : UInt16} {rest : List UInt16} (hu : Spec.Unpaired [] 
     rw [← lo_isLow_iff] at hl
     rw [lo_dl_low _ hh hl]
 
-theorem lo_subst_dl (us : List UInt16) : Spec.Substitutes16 us (decodeLossy us) := by
+theorem lo_subst_dl (us : List UInt16) : Utf.Spec.Substitutes16 us (decodeLossy us) := by
   induction us using decodeLossy.induct with
-  | case1 => rw [lo_dl_nil]; exact Spec.Substitutes16.nil
+  | case1 => rw [lo_dl_nil]; exact Utf.Spec.Substitutes16.nil
   | case2 u hu v rest' hv ih =>
     rw [lo_dl_pair _ hu hv]
-    have := Spec.Substitutes16.char (c := pair u v) ih
+    have := Utf.Spec.Substitutes16.char (c := pair u v) ih
     rw [lo_encodeChar16, lo_encodeChar_pair hu hv] at this
     exact this
   | case3 u hu v rest' hv ih =>
     rw [lo_dl_high_bad _ hu hv]
-    have hm : Spec.MaximalSubpart16 [u] (v :: rest') := by
+    have hm : Utf.Spec.MaximalSubpart16 [u] (v :: rest') := by
       rw [lo_maximalSubpart_iff]
       refine ⟨u, rfl, Or.inl ⟨(lo_isHigh_iff u).1 hu, ?_⟩⟩
       rintro ⟨v', r', he, hv'⟩
       simp only [List.cons.injEq] at he
       rw [← he.1, ← lo_isLow_iff] at hv'
       exact hv hv'
-    exact Spec.Substitutes16.replace hm ih
+    exact Utf.Spec.Substitutes16.replace hm ih
   | case4 u hu =>
     rw [lo_dl_high_end hu]
-    have hm : Spec.MaximalSubpart16 [u] [] := by
+    have hm : Utf.Spec.MaximalSubpart16 [u] [] := by
       rw [lo_maximalSubpart_iff]
       refine ⟨u, rfl, Or.inl ⟨(lo_isHigh_iff u).1 hu, ?_⟩⟩
       rintro ⟨v', r', he, -⟩
       simp at he
-    exact Spec.Substitutes16.replace hm Spec.Substitutes16.nil
+    exact Utf.Spec.Substitutes16.replace hm Utf.Spec.Substitutes16.nil
   | case5 u rest hu hl ih =>
     rw [lo_dl_low _ hu hl]
-    have hm : Spec.MaximalSubpart16 [u] rest := by
+    have hm : Utf.Spec.MaximalSubpart16 [u] rest := by
       rw [lo_maximalSubpart_iff]
       refine ⟨u, rfl, Or.inr ⟨(lo_isLow_iff u).1 hl, ?_⟩⟩
       rintro ⟨l', v, he, -⟩
       simp at he
-    exact Spec.Substitutes16.replace hm ih
+    exact Utf.Spec.Substitutes16.replace hm ih
   | case6 u rest hu hl ih =>
     rw [lo_dl_plain _ hu hl]
-    have := Spec.Substitutes16.char (c := Char.ofNat u.toNat) ih
+    have := Utf.Spec.Substitutes16.char (c := Char.ofNat u.toNat) ih
     rw [lo_encodeChar16, lo_encodeChar_plain hu hl] at this
     exact this
 
-theorem lo_dl_of_subst {us : List UInt16} {out : List Char} (h : Spec.Substitutes16 us out) :
+theorem lo_dl_of_subst {us : List UInt16} {out : List Char} (h : Utf.Spec.Substitutes16 us out) :
     decodeLossy us = out := by
   induction h with
   | nil => exact lo_dl_nil
@@ -331,20 +331,20 @@ theorem lo_dl_encode (cs : List Char) : decodeLossy (encode cs) = cs := by
   exact this
 
 theorem decodeLossy_iff (us : List UInt16) (out : List Char) :
-    Utf16.decodeLossy us = out ↔ Spec.Substitutes16 us out := by
+    Utf16.decodeLossy us = out ↔ Utf.Spec.Substitutes16 us out := by
   constructor
   · rintro rfl; exact lo_subst_dl us
   · exact lo_dl_of_subst
 
 /-- In UTF-16 a maximal subpart is always one isolated surrogate. A
     fact about the definitions alone, so not one of the statements of
-    `Spec.lean`; `decodeLossy_iff` rests on it. -/
+    `Utf/Spec.lean`; `decodeLossy_iff` rests on it. -/
 theorem maximalSubpart_iff (p rest : List UInt16) :
-    Spec.MaximalSubpart16 p rest ↔ ∃ w, p = [w] ∧ Spec.Unpaired [] w rest :=
+    Utf.Spec.MaximalSubpart16 p rest ↔ ∃ w, p = [w] ∧ Utf.Spec.Unpaired [] w rest :=
   lo_maximalSubpart_iff p rest
 
 theorem decodeLossy_unpaired (w : UInt16) (rest : List UInt16) :
-    Spec.Unpaired [] w rest → Utf16.decodeLossy (w :: rest) = '�' :: Utf16.decodeLossy rest :=
+    Utf.Spec.Unpaired [] w rest → Utf16.decodeLossy (w :: rest) = '�' :: Utf16.decodeLossy rest :=
   fun hu => lo_dl_unpaired hu
 
 theorem decodeLossy_of_decode (us : List UInt16) (cs : List Char) :
@@ -448,14 +448,14 @@ theorem lo_tw_plain {u : UInt16} (r : List UInt16) (hu : ¬ isHigh u = true)
 def lo_TW (l us out : List UInt16) : Prop :=
   out.length = us.length ∧
   ∀ (i : Nat) (h : i < us.length),
-    (Spec.Unpaired (l ++ us.take i) us[i] (us.drop (i + 1)) → out[i]? = some 0xFFFD) ∧
-    (¬ Spec.Unpaired (l ++ us.take i) us[i] (us.drop (i + 1)) → out[i]? = some us[i])
+    (Utf.Spec.Unpaired (l ++ us.take i) us[i] (us.drop (i + 1)) → out[i]? = some 0xFFFD) ∧
+    (¬ Utf.Spec.Unpaired (l ++ us.take i) us[i] (us.drop (i + 1)) → out[i]? = some us[i])
 
 theorem lo_TW_nil (l : List UInt16) : lo_TW l [] [] :=
   ⟨rfl, fun _ h => absurd h (Nat.not_lt_zero _)⟩
 
 theorem lo_TW_cons {l rest X : List UInt16} {u a : UInt16}
-    (h1 : Spec.Unpaired l u rest → a = 0xFFFD) (h2 : ¬ Spec.Unpaired l u rest → a = u)
+    (h1 : Utf.Spec.Unpaired l u rest → a = 0xFFFD) (h2 : ¬ Utf.Spec.Unpaired l u rest → a = u)
     (h : lo_TW (l ++ [u]) rest X) : lo_TW l (u :: rest) (a :: X) := by
   refine ⟨by simp [h.1], fun i hi => ?_⟩
   match i, hi with
@@ -471,7 +471,7 @@ theorem lo_TW_cons {l rest X : List UInt16} {u a : UInt16}
     exact h.2 i (by simpa using hi)
 
 theorem lo_endsHigh_append {l : List UInt16} {x : UInt16} :
-    (∃ l' v, l ++ [x] = l' ++ [v] ∧ Spec.High v) ↔ Spec.High x := by
+    (∃ l' v, l ++ [x] = l' ++ [v] ∧ Utf.Spec.High v) ↔ Utf.Spec.High x := by
   constructor
   · rintro ⟨l', v, he, hv⟩
     have := congrArg List.reverse he
@@ -481,7 +481,7 @@ theorem lo_endsHigh_append {l : List UInt16} {x : UInt16} :
   · intro hx; exact ⟨l, x, rfl, hx⟩
 
 theorem lo_tw_main (us : List UInt16) : ∀ (l : List UInt16),
-    (∀ v r, us = v :: r → Spec.Low v → ¬ ∃ l' x, l = l' ++ [x] ∧ Spec.High x) →
+    (∀ v r, us = v :: r → Utf.Spec.Low v → ¬ ∃ l' x, l = l' ++ [x] ∧ Utf.Spec.High x) →
     lo_TW l us (encode (decodeLossy us)) := by
   induction us using decodeLossy.induct with
   | case1 => intro l _; rw [lo_dl_nil]; exact lo_TW_nil l
@@ -550,9 +550,9 @@ theorem lo_tw_main (us : List UInt16) : ∀ (l : List UInt16),
 theorem toWellFormed_spec (us : List UInt16) :
     (Utf16.toWellFormed us).length = us.length ∧
     ∀ (i : Nat) (h : i < us.length),
-      (Spec.Unpaired (us.take i) us[i] (us.drop (i + 1)) →
+      (Utf.Spec.Unpaired (us.take i) us[i] (us.drop (i + 1)) →
         (Utf16.toWellFormed us)[i]? = some 0xFFFD) ∧
-      (¬ Spec.Unpaired (us.take i) us[i] (us.drop (i + 1)) →
+      (¬ Utf.Spec.Unpaired (us.take i) us[i] (us.drop (i + 1)) →
         (Utf16.toWellFormed us)[i]? = some us[i]) := by
   have h := lo_tw_main us [] (by
     rintro v r - - ⟨l', x, he, -⟩

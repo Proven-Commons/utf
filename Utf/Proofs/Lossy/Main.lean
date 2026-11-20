@@ -4,13 +4,13 @@
 -/
 
 import Utf8
-import Spec.Defs
-import Proofs.Encode
-import Proofs.Decode
-import Proofs.Table
-import Proofs.Lossy.Defs
-import Proofs.Lossy.Table
-import Proofs.Lossy.Step
+import Utf.Spec.Defs
+import Utf.Proofs.Encode
+import Utf.Proofs.Decode
+import Utf.Proofs.Table
+import Utf.Proofs.Lossy.Defs
+import Utf.Proofs.Lossy.Table
+import Utf.Proofs.Lossy.Step
 
 namespace Utf8.Proofs.Lossy
 
@@ -95,11 +95,11 @@ theorem mn_decodeLossy_encodeChar_append (c : Char) (rest : List UInt8) :
 
 
 theorem mn_maximalSubpart (b0 : UInt8) (rest : List UInt8) (h : decodeChar (b0 :: rest) = none) :
-    Spec.MaximalSubpart ((b0 :: rest).take (badLength b0 rest))
+    Utf.Spec.MaximalSubpart ((b0 :: rest).take (badLength b0 rest))
       ((b0 :: rest).drop (badLength b0 rest)) := by
   have hpos := badLength_pos b0 rest
   have hle := badLength_le b0 rest
-  have hu : Spec.Unconvertible (b0 :: rest) := (unconvertible_iff b0 rest).mpr h
+  have hu : Utf.Spec.Unconvertible (b0 :: rest) := (unconvertible_iff b0 rest).mpr h
   refine ⟨?_, ?_, ?_, ?_⟩
   · intro h0
     have := congrArg List.length h0
@@ -130,21 +130,21 @@ theorem mn_maximalSubpart (b0 : UInt8) (rest : List UInt8) (h : decodeChar (b0 :
       exact Bool.noConfusion this
     · omega
 
-theorem mn_maximalSubpart_unique {p r p' r' : List UInt8} (h : Spec.MaximalSubpart p r)
-    (h' : Spec.MaximalSubpart p' r') (he : p ++ r = p' ++ r') : p = p' ∧ r = r' := by
+theorem mn_maximalSubpart_unique {p r p' r' : List UInt8} (h : Utf.Spec.MaximalSubpart p r)
+    (h' : Utf.Spec.MaximalSubpart p' r') (he : p ++ r = p' ++ r') : p = p' ∧ r = r' := by
   have l1 : p'.length ≤ p.length := h.2.2.2 p' (he ▸ List.prefix_append p' r') h'.2.2.1
   have l2 : p.length ≤ p'.length := h'.2.2.2 p (he ▸ List.prefix_append p r) h.2.2.1
   exact List.append_inj he (by omega)
 
 
 theorem mn_substitutes_decodeLossy (n : Nat) : ∀ bs : List UInt8, bs.length < n →
-    Spec.Substitutes bs (decodeLossy bs) := by
+    Utf.Spec.Substitutes bs (decodeLossy bs) := by
   induction n with
   | zero => intro bs h; omega
   | succ n ih =>
     intro bs hn
     cases bs with
-    | nil => exact Spec.Substitutes.nil
+    | nil => exact Utf.Spec.Substitutes.nil
     | cons b r =>
       cases hd : decodeChar (b :: r) with
       | some cr =>
@@ -156,18 +156,18 @@ theorem mn_substitutes_decodeLossy (n : Nat) : ∀ bs : List UInt8, bs.length < 
         have hp := mn_encodeChar_length_pos c
         have ih' := ih rest (by omega)
         rw [he, Utf8.Proofs.Encode.encodeChar_eq]
-        exact Spec.Substitutes.char ih'
+        exact Utf.Spec.Substitutes.char ih'
       | none =>
         rw [mn_decodeLossy_none hd]
         have hpos := badLength_pos b r
         have ih' := ih ((b :: r).drop (badLength b r)) (by simp only [List.length_drop, List.length_cons] at hn ⊢; omega)
         have hm := mn_maximalSubpart b r hd
-        have := Spec.Substitutes.replace hm ih'
+        have := Utf.Spec.Substitutes.replace hm ih'
         rw [List.take_append_drop] at this
         exact this
 
 theorem mn_decodeLossy_of_substitutes {bs : List UInt8} {out : List Char}
-    (h : Spec.Substitutes bs out) : decodeLossy bs = out := by
+    (h : Utf.Spec.Substitutes bs out) : decodeLossy bs = out := by
   induction h with
   | nil => rfl
   | @char c rest out _ ih =>
@@ -186,7 +186,7 @@ theorem mn_decodeLossy_of_substitutes {bs : List UInt8} {out : List Char}
     rfl
 
 theorem decodeLossy_iff (bs : List UInt8) (out : List Char) :
-    Utf8.decodeLossy bs = out ↔ Spec.Substitutes bs out := by
+    Utf8.decodeLossy bs = out ↔ Utf.Spec.Substitutes bs out := by
   constructor
   · rintro rfl
     exact mn_substitutes_decodeLossy (bs.length + 1) bs (Nat.lt_succ_self _)

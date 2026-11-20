@@ -4,7 +4,7 @@
   units.
 -/
 
-import Proofs.Utf16.Units
+import Utf.Proofs.Utf16.Units
 
 namespace Utf16.Proofs
 
@@ -21,18 +21,18 @@ theorem by_lo (u : UInt16) : (u.toNat % 0x100).toUInt8 = (u &&& 0xFF).toUInt8 :=
   rw [show (255 : Nat) = 2^8 - 1 from rfl, Nat.and_two_pow_sub_one_eq_mod]
   omega
 
-theorem by_bytesBE (us : List UInt16) : bytesBE us = Spec.serializeBE us := by
+theorem by_bytesBE (us : List UInt16) : bytesBE us = Utf.Spec.serializeBE us := by
   induction us with
   | nil => rfl
   | cons u us ih =>
-    simp only [bytesBE, Spec.serializeBE, List.flatMap_cons, List.map_cons, List.flatten_cons] at *
+    simp only [bytesBE, Utf.Spec.serializeBE, List.flatMap_cons, List.map_cons, List.flatten_cons] at *
     rw [ih, by_hi, by_lo]
 
-theorem by_bytesLE (us : List UInt16) : bytesLE us = Spec.serializeLE us := by
+theorem by_bytesLE (us : List UInt16) : bytesLE us = Utf.Spec.serializeLE us := by
   induction us with
   | nil => rfl
   | cons u us ih =>
-    simp only [bytesLE, Spec.serializeLE, List.flatMap_cons, List.map_cons, List.flatten_cons] at *
+    simp only [bytesLE, Utf.Spec.serializeLE, List.flatMap_cons, List.map_cons, List.flatten_cons] at *
     rw [ih, by_hi, by_lo]
 
 theorem by_unit_bytes (u : UInt16) : unit (u >>> 8).toUInt8 (u &&& 0xFF).toUInt8 = u := by
@@ -58,25 +58,25 @@ theorem by_lo_unit (a b : UInt8) : (unit a b &&& 0xFF).toUInt8 = b := by
   simp [unit] <;> omega
 
 theorem by_units_serializeBE (us : List UInt16) :
-    units true (Spec.serializeBE us) = (us, none) := by
+    units true (Utf.Spec.serializeBE us) = (us, none) := by
   induction us with
   | nil => rfl
   | cons u us ih =>
-    simp only [Spec.serializeBE, List.map_cons, List.flatten_cons, List.cons_append,
+    simp only [Utf.Spec.serializeBE, List.map_cons, List.flatten_cons, List.cons_append,
       List.nil_append] at *
     simp only [units, ih, by_unit_bytes, ite_true]
 
 theorem by_units_serializeLE (us : List UInt16) :
-    units false (Spec.serializeLE us) = (us, none) := by
+    units false (Utf.Spec.serializeLE us) = (us, none) := by
   induction us with
   | nil => rfl
   | cons u us ih =>
-    simp only [Spec.serializeLE, List.map_cons, List.flatten_cons, List.cons_append,
+    simp only [Utf.Spec.serializeLE, List.map_cons, List.flatten_cons, List.cons_append,
       List.nil_append] at *
     simp only [units, ih, by_unit_bytes, Bool.false_eq_true, ite_false]
 
 theorem by_serializeBE_units : (bs : List UInt8) → (us : List UInt16) →
-    units true bs = (us, none) → bs = Spec.serializeBE us
+    units true bs = (us, none) → bs = Utf.Spec.serializeBE us
   | [], us, h => by
     simp only [units, Prod.mk.injEq] at h
     rw [← h.1]; rfl
@@ -91,11 +91,11 @@ theorem by_serializeBE_units : (bs : List UInt8) → (us : List UInt16) →
     obtain ⟨h1, h2⟩ := h
     subst h1 h2
     rw [ih rfl]
-    simp only [Spec.serializeBE, List.map_cons, List.flatten_cons, by_hi_unit, by_lo_unit,
+    simp only [Utf.Spec.serializeBE, List.map_cons, List.flatten_cons, by_hi_unit, by_lo_unit,
       List.cons_append, List.nil_append]
 
 theorem by_serializeLE_units : (bs : List UInt8) → (us : List UInt16) →
-    units false bs = (us, none) → bs = Spec.serializeLE us
+    units false bs = (us, none) → bs = Utf.Spec.serializeLE us
   | [], us, h => by
     simp only [units, Prod.mk.injEq] at h
     rw [← h.1]; rfl
@@ -110,20 +110,20 @@ theorem by_serializeLE_units : (bs : List UInt8) → (us : List UInt16) →
     obtain ⟨h1, h2⟩ := h
     subst h1 h2
     rw [ih rfl]
-    simp only [Spec.serializeLE, List.map_cons, List.flatten_cons, by_hi_unit, by_lo_unit,
+    simp only [Utf.Spec.serializeLE, List.map_cons, List.flatten_cons, by_hi_unit, by_lo_unit,
       List.cons_append, List.nil_append]
 
 /-! ## The statements -/
 
 theorem encodeBytes (cs : List Char) :
-    Utf16.encodeBE cs = Spec.serializeBE (Spec.encode16 cs) ∧
-    Utf16.encodeLE cs = Spec.serializeLE (Spec.encode16 cs) := by
+    Utf16.encodeBE cs = Utf.Spec.serializeBE (Utf.Spec.encode16 cs) ∧
+    Utf16.encodeLE cs = Utf.Spec.serializeLE (Utf.Spec.encode16 cs) := by
   refine ⟨?_, ?_⟩
   · rw [encodeBE, by_bytesBE, encode_eq]
   · rw [encodeLE, by_bytesLE, encode_eq]
 
 theorem decodeBE_iff (bs : List UInt8) (cs : List Char) :
-    Utf16.decodeBE bs = some cs ↔ bs = Spec.serializeBE (Spec.encode16 cs) := by
+    Utf16.decodeBE bs = some cs ↔ bs = Utf.Spec.serializeBE (Utf.Spec.encode16 cs) := by
   constructor
   · intro h
     unfold decodeBE decodeBytes at h
@@ -143,7 +143,7 @@ theorem decodeBE_iff (bs : List UInt8) (cs : List Char) :
     exact decode_encode cs
 
 theorem decodeLE_iff (bs : List UInt8) (cs : List Char) :
-    Utf16.decodeLE bs = some cs ↔ bs = Spec.serializeLE (Spec.encode16 cs) := by
+    Utf16.decodeLE bs = some cs ↔ bs = Utf.Spec.serializeLE (Utf.Spec.encode16 cs) := by
   constructor
   · intro h
     unfold decodeLE decodeBytes at h
@@ -163,8 +163,8 @@ theorem decodeLE_iff (bs : List UInt8) (cs : List Char) :
     exact decode_encode cs
 
 theorem decodeScheme_iff (bs : List UInt8) (cs : List Char) :
-    Utf16.decodeScheme bs = some cs ↔ Spec.SchemeReads bs cs := by
-  unfold Spec.SchemeReads
+    Utf16.decodeScheme bs = some cs ↔ Utf.Spec.SchemeReads bs cs := by
+  unfold Utf.Spec.SchemeReads
   match bs with
   | [] =>
     simp only [decodeScheme, decodeBE_iff]
@@ -192,8 +192,8 @@ theorem decodeScheme_iff (bs : List UInt8) (cs : List Char) :
           · exact h
 
 theorem decodeLossyBytes_units (us : List UInt16) :
-    Utf16.decodeLossyBE (Spec.serializeBE us) = Utf16.decodeLossy us ∧
-    Utf16.decodeLossyLE (Spec.serializeLE us) = Utf16.decodeLossy us := by
+    Utf16.decodeLossyBE (Utf.Spec.serializeBE us) = Utf16.decodeLossy us ∧
+    Utf16.decodeLossyLE (Utf.Spec.serializeLE us) = Utf16.decodeLossy us := by
   refine ⟨?_, ?_⟩
   · unfold decodeLossyBE decodeLossyBytes
     rw [by_units_serializeBE]
