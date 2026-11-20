@@ -154,17 +154,3 @@ Together, these fix every output.
 Python's strict `utf-8` codec, on every input, and its `replace` error handler for the lossy decoder. Lean core's `String.fromUTF8?` at run time is checked against the same answers as the strict decoder.
 
 For UTF-16, Python's `utf-16-be` and `utf-16-le` codecs, strict and with `replace`, for the unit decoders and the byte decoders. Python's `utf-16` codec reads text that starts with a byte order mark. Text with no mark goes to `utf-16-be`, since Python's `utf-16` would read it in the machine's byte order, little-endian on most machines. For `toWellFormed`, the oracle is ECMAScript's `CodePointAt` rule, written out in `tests/run_tests.py`.
-
-## Mutation evidence limits
-
-The merged lossy UTF-8 slice lists eight behavior-changing mutations:
-one replacement per bad byte; four separate second-byte bound mutations
-for E0, ED, F0 and F4; failing to count the third byte of a truncated
-four-byte sequence; allowing leads through F7; and a two-byte lead
-swallowing the following byte. This accounts for eight, not five.
-
-The UTF-16 PR reports fourteen mutations, but its published list identifies
-only thirteen when the two disjunctions are counted separately. No
-fourteenth mutation or reproducible mutation runner is recorded in this
-repository. The fourteen-run claim therefore remains unverified; the
-ordinary differential results are recorded in `tests/TEST-RESULTS.md`.
